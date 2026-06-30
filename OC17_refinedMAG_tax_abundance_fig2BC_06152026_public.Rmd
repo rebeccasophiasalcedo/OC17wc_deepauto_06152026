@@ -449,5 +449,5 @@ print(summary_table)
 ```{r}
 phylum_summary <- genome_info %>%
   count(phylum, name = "MAG_count")
-write.csv(x = phylum_summary, file = paste0(rootdir, "refined_analysis/refined_tables/table2_phylumsummary_06152026.csv"), row.names = FALSE)
+write.csv(x = summary_table, file = paste0(rootdir, "refined_analysis/refined_tables/table2_phylumsummary_06152026.csv"), row.names = FALSE)
 ```
