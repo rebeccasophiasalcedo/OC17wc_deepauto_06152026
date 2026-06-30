@@ -20,7 +20,8 @@ OC17_refinedMAG_abundance_heatmap_06152026_public.Rmd
     
 OC17_refinedMAG_annotation_06152026_public.rmd
   Outlines the processing of refined genomes to generate annotations, taxonomic ID, and relative abundance. produces 
-  refined_auto_MAGs_edited_06152026.csv which is used for most downstream figure creation. Also produces tables S6 and S10. 
+  refined_auto_MAGs_edited_06152026.csv which is used for most downstream figure creation. Also produces tables S6 and S10. Uses refined genome
+  files and DRAM_energy_pathways_v5.tsv.
   
 OC17_refinedMAG_cat_abundance_fig3_06152026_public.rmd
   Code used to process refined_auto_MAGs_edited_06152026.csv and produce figure 3.
@@ -34,7 +35,7 @@ OC17_refinedMAG_gene_tree_06152026.rmd
   
 OC17_refinedMAG_OMtransporters_06152026_public.rmd
   Code similar to that in OC17_refinedMAG_cat_potential_fig4_06152026_public.rmd and used to assess the presence of ABC transporters and DIC
-  pathway completion across genomes included in study. used to produce figures S4. 
+  pathway completion across genomes included in study. used to produce figures S4. Uses DRAM_completeauto_OM_pathway.csv
 
 OC17_refinedMAG_sulfiteoxidation2genes_06152026_public.Rmd
   Code similar to that in OC17_refinedMAG_cat_potential_fig4_06152026_public.rmd and used to assess the presence of sulfite oxidation genes
