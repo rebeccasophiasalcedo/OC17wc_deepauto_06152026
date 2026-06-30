@@ -31,7 +31,7 @@ OC17_refinedMAG_cat_potential_fig4_06152026_public.rmd
 
 OC17_refinedMAG_gene_tree_06152026.rmd
   Code used to create phylogenetic trees to confirm automatic annotations of amo/pmo and nxr/nar. produces 06152026_genetree_to_remove.csv 
-  which is used to finally generate refined_auto_MAGs_edited_06152026.csv in OC17_refinedMAG_cat_abundance_fig3_06152026_public.rmd. 
+  which is used to finally generate refined_auto_MAGs_edited_06152026.csv in OC17_refinedMAG_annotation_06152026_public.rmd. 
   
 OC17_refinedMAG_OMtransporters_06152026_public.rmd
   Code similar to that in OC17_refinedMAG_cat_potential_fig4_06152026_public.rmd and used to assess the presence of ABC transporters and DIC
