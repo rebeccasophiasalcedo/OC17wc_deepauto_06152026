@@ -1,0 +1,216 @@
+---
+title: "OC17_refinedMAGs_abundance_heatmap_06152026"
+output: html_document
+date: "2026-05-29"
+---
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(readr)
+library(stringr)
+library(purrr)
+library(tidyr)
+library(forcats)
+library(patchwork)
+```
+
+```{r}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/"
+```
+
+```{r}
+genome_info = read.csv(paste0(rootdir, "/refined_analysis/refined_tables/refined_tableS6_06152026.csv"))
+coverM = read.csv(paste0(rootdir, "/refined_analysis/merged_coverM/refined_coverM_all_06152026.csv"))
+df = filter(genome_info, catabolism_found == "TRUE")
+df$X = NULL
+```
+
+```{r}
+#add in correct coverM information
+metadata_cols <- c(
+  "genome",
+  "site_generated",
+  "depth_generated",
+  "classification",
+  "completeness",
+  "contamination",
+  "pathway",
+  "previously_reported",
+  "catabolism_found",
+  "label"
+)
+
+abund = select(df, c(metadata_cols))
+
+coverM$Sample = paste(coverM$site, coverM$depth, sep = "_")
+coverm_QC = filter(coverM, covered_fraction >= 0.50)
+sample_cov = coverm_QC %>% 
+  group_by(Sample) %>% 
+  summarise(Mean = sum(Mean))
+
+coverm_QC = left_join(coverm_QC, sample_cov, "Sample")
+coverm_QC <- coverm_QC %>% 
+  rename_with(~ "sample_cov", starts_with("Mean.y"))
+coverm_QC <- coverm_QC %>% 
+  rename_with(~ "genome_cov", starts_with("Mean.x"))
+coverm_QC$relative = coverm_QC$genome_cov/coverm_QC$sample_cov
+
+coverm_QC_mini = select(coverm_QC, c("genome", "Sample", "relative"))
+
+length(unique(coverm_QC_mini$genome))
+
+#match genome and site/depth and add coverM data
+abund_df = merge(coverm_QC_mini, abund, by = "genome", all.y = TRUE)
+
+length(unique(abund_df$genome))
+```
+
+```{r}
+abund_long <- abund_df %>%
+  mutate(
+    Sample = str_trim(as.character(Sample)),
+    
+    # extract depth
+    parsed_depth = as.numeric(str_extract(Sample, "\\d+$")),
+    
+    # extract site
+    parsed_site = str_extract(Sample, "^[^_]+")
+  )
+
+#arrange depths
+sample_order <- abund_long %>%
+  arrange(parsed_depth, parsed_site) %>%
+  pull(Sample) %>%
+  unique()
+
+#arrange samples
+abund_long <- abund_long %>%
+  mutate(
+    sample = factor(Sample, levels = sample_order)
+  )
+```
+
+
+
+```{r}
+# Order genomes by taxonomy then pathway
+genome_order <- abund_long %>%
+  distinct(genome, label, pathway) %>%
+  arrange(label, pathway, genome) %>%
+  pull(genome)
+
+abund_long <- abund_long %>%
+  mutate(
+    genome = factor(genome, levels = genome_order)
+  )
+
+```
+
+```{r}
+#plot
+p_heatmap = ggplot(
+  abund_long,
+  aes(
+    x = genome,
+    y = sample,
+    fill = relative
+  )
+) +
+  geom_tile() +
+  
+  scale_y_discrete(limits = rev) +
+  
+  facet_grid(
+    ~ label,
+    scales = "free_x",
+    space = "free_x"
+  ) +
+  
+scale_fill_gradientn(
+  colours = c(
+    "gray95",
+    "grey85",
+    "grey65",
+    "grey40",
+    "grey30"
+  ),
+  na.value = "white"
+) +
+  
+  theme_bw() +
+  
+  theme(
+    axis.text.x = element_text(
+      angle = 90,
+      hjust = 1,
+      vjust = 0.5,
+      size = 6
+    ),
+    strip.background = element_blank(),
+    panel.spacing.x = unit(0.1, "cm"),
+    strip.text.x = element_blank()
+  ) +
+  
+  labs(
+    x = "MAG",
+    y = "Sample (Depth - Site)",
+    fill = "Relative Abundance (%)"
+  )
+
+p_heatmap
+```
+build the pathway annotation bar
+```{r}
+pathway_df <- abund_long %>%
+  distinct(genome, pathway, label)
+
+p_pathway <- ggplot(
+  pathway_df,
+  aes(
+    x = genome,
+    y = 1,
+    fill = pathway
+  )
+) +
+  geom_tile() +
+  facet_grid(
+    ~ label,
+    scales = "free_x",
+    space = "free_x"
+  ) +
+    scale_fill_manual(
+    values = c(
+      "3HP bi-cycle"      = "#CC79A7",
+      "3HP/4HB"           = "#E69F00",
+      "CBB"               = "#56B4E9",
+      "DC/4HB"            = "#660033",
+      "3HP bicycle, CBB" = "#A1B5A3"
+    )
+  ) +
+  theme_void() +
+  theme(
+    legend.position = "right",
+      strip.text.x = element_text(
+    angle = 90,
+    hjust = 0.5,
+    vjust = 0.5
+  )
+  )
+p_pathway
+
+```
+combine plots
+```{r}
+plot = p_pathway / p_heatmap +
+  plot_layout(
+    heights = c(0.05, 1)
+  )
+
+plot
+```
+save
+```{r}
+ggsave(file = paste0(rootdir, "/refined_analysis/refined_figures/06152026/06152026_heatmap.pdf"), plot = plot, units = "in", height = 11, width = 20, dpi = 72)
+```
+

@@ -1,0 +1,278 @@
+gene_id	gene_description	module	header
+K00196	carbon-monoxide dehydrogenase iron sulfur subunit	amaerobic CO oxidation	CO oxidation
+K03520	carbon-monoxide dehydrogenase large subunit	aerobic CO oxidation	CO oxidation
+K03519	carbon-monoxide dehydrogenase medium subunit	aerobic CO oxidation	CO oxidation
+K03518	carbon-monoxide dehydrogenase small subunit	aerobic CO oxidation	CO oxidation
+K00192	"cdhA; anaerobic carbon-monoxide dehydrogenase, CODH/ACS complex subunit alpha [EC:1.2.7.4] [RN:R07157]"	amaerobic CO oxidation	CO oxidation
+K00195	"cdhB; anaerobic carbon-monoxide dehydrogenase, CODH/ACS complex subunit epsilon [RN:R07157]"	amaerobic CO oxidation	CO oxidation
+K00193	"cdhC; acetyl-CoA decarbonylase/synthase, CODH/ACS complex subunit beta [EC:2.3.1.169] [RN:R09096 R10219]"	amaerobic CO oxidation	CO oxidation
+K00194	"cdhD; acetyl-CoA decarbonylase/synthase, CODH/ACS complex subunit delta [EC:2.1.1.245] [RN:R09096 R10219]"	amaerobic CO oxidation	CO oxidation
+K00197	"cdhE; acetyl-CoA decarbonylase/synthase, CODH/ACS complex subunit gamma [EC:2.1.1.245] [RN:R09096 R10219]"	amaerobic CO oxidation	CO oxidation
+K17066	alcohol oxidase [EC:1.1.3.13] [RN:R00608]	CH4 => formaldehyde	methanotrophy
+K16157	methane monooxygenase component A [EC:1.14.13.25] [RN:R01142]	CH4 => formaldehyde	methanotrophy
+K16158	methane monooxygenase component A [EC:1.14.13.25] [RN:R01142]	CH4 => formaldehyde	methanotrophy
+K16159	methane monooxygenase component A [EC:1.14.13.25] [RN:R01142]	CH4 => formaldehyde	methanotrophy
+K16161	methane monooxygenase component C [EC:1.14.13.25] [RN:R01142]	CH4 => formaldehyde	methanotrophy
+K16162	methane monooxygenase component D [RN:R01142]	CH4 => formaldehyde	methanotrophy
+K16160	methane monooxygenase regulatory protein B [RN:R01142]	CH4 => formaldehyde	methanotrophy
+K10944	methane/ammonia monooxygenase [EC:1.14.18.3] [RN:R09518]	CH4 => formaldehyde	methanotrophy
+K10945	methane/ammonia monooxygenase [EC:1.14.18.3] [RN:R09518]	CH4 => formaldehyde	methanotrophy
+K10946	methane/ammonia monooxygenase [EC:1.14.18.3] [RN:R09518]	CH4 => formaldehyde	methanotrophy
+K14028	methanol dehydrogenase [EC:1.1.2.7] [RN:R01146]	CH4 => formaldehyde	methanotrophy
+K14029	methanol dehydrogenase [EC:1.1.2.7] [RN:R01146]	CH4 => formaldehyde	methanotrophy
+K14080	[methyl-Co(III) methanol-specific corrinoid protein]:coenzyme M methyltransferase [EC:2.1.1.246] [RN:R09098]	Methanogenesis	C1-methane
+K00204	4Fe-4S ferredoxin	Methanogenesis	C1-methane
+K00205	4Fe-4S ferredoxin	Methanogenesis	C1-methane
+K11260	4Fe-4S ferredoxin	Methanogenesis	C1-methane
+K13942	"5,10-methenyltetrahydromethanopterin hydrogenase [EC:1.12.98.2] [RN:R04455]"	Methanogenesis	C1-methane
+K00925	acetate kinase [EC:2.7.2.1] [RN:R00315]	Methanogenesis	C1-methane
+K00193	acetyl-CoA decarbonylase/synthase complex [EC:2.3.1.-] [RN:R09096]	Methanogenesis	C1-methane
+K00194	acetyl-CoA decarbonylase/synthase complex [EC:2.3.1.-] [RN:R09096]	Methanogenesis	C1-methane
+K00197	acetyl-CoA decarbonylase/synthase complex [EC:2.3.1.-] [RN:R09096]	Methanogenesis	C1-methane
+K01895	acetyl-CoA synthetase [EC:6.2.1.1] [RN:R00235]	Methanogenesis	C1-methane
+K00320	"coenzyme F420-dependent N5,N10-methenyltetrahydromethanopterin reductase [EC:1.5.99.11] [RN:R04464]"	Methanogenesis	C1-methane
+K14126	F420-non-reducing hydrogenase [EC:1.8.98.5] [RN:R11943]	Methanogenesis	C1-methane
+K14128	F420-non-reducing hydrogenase [EC:1.8.98.5] [RN:R11943]	Methanogenesis	C1-methane
+K14126	F420-non-reducing hydrogenase [EC:1.8.98.5] [RN:R11943]	Methanogenesis	C1-methane
+K14128	F420-non-reducing hydrogenase [EC:1.8.98.5] [RN:R11943]	Methanogenesis	C1-methane
+K14126	F420-non-reducing hydrogenase [EC:1.8.98.5] [RN:R11943]	Methanogenesis	C1-methane
+K14128	F420-non-reducing hydrogenase [EC:1.8.98.5] [RN:R11943]	Methanogenesis	C1-methane
+K14126	F420-non-reducing hydrogenase [EC:1.8.98.5] [RN:R11943]	Methanogenesis	C1-methane
+K14128	F420-non-reducing hydrogenase [EC:1.8.98.5] [RN:R11943]	Methanogenesis	C1-methane
+K14127	F420-non-reducing hydrogenase iron-sulfur subunit [EC:1.8.98.5 1.8.98.6] [RN:R11943 R11944]	Methanogenesis	C1-methane
+K14127	F420-non-reducing hydrogenase iron-sulfur subunit [EC:1.8.98.5 1.8.98.6] [RN:R11943 R11944]	Methanogenesis	C1-methane
+K14127	F420-non-reducing hydrogenase iron-sulfur subunit [EC:1.8.98.5 1.8.98.6] [RN:R11943 R11944]	Methanogenesis	C1-methane
+K14127	F420-non-reducing hydrogenase iron-sulfur subunit [EC:1.8.98.5 1.8.98.6] [RN:R11943 R11944]	Methanogenesis	C1-methane
+K00125	formate dehydrogenase (coenzyme F420) [EC:1.8.98.6] [RN:R11944]	Methanogenesis	C1-methane
+K22516	formate dehydrogenase (coenzyme F420) [EC:1.8.98.6] [RN:R11944]	Methanogenesis	C1-methane
+K00125	formate dehydrogenase (coenzyme F420) [EC:1.8.98.6] [RN:R11944]	Methanogenesis	C1-methane
+K22516	formate dehydrogenase (coenzyme F420) [EC:1.8.98.6] [RN:R11944]	Methanogenesis	C1-methane
+K00125	formate dehydrogenase (coenzyme F420) [EC:1.8.98.6] [RN:R11944]	Methanogenesis	C1-methane
+K22516	formate dehydrogenase (coenzyme F420) [EC:1.8.98.6] [RN:R11944]	Methanogenesis	C1-methane
+K00125	formate dehydrogenase (coenzyme F420) [EC1.8.98.6] [RN:R11944]	Methanogenesis	C1-methane
+K22516	formate dehydrogenase (coenzyme F420) [EC1.8.98.6] [RN:R11944]	Methanogenesis	C1-methane
+K00200	formylmethanofuran dehydrogenase [EC:1.2.99.5] [RN:R03015]	Methanogenesis	C1-methane
+K00201	formylmethanofuran dehydrogenase [EC:1.2.99.5] [RN:R03015]	Methanogenesis	C1-methane
+K00202	formylmethanofuran dehydrogenase [EC:1.2.99.5] [RN:R03015]	Methanogenesis	C1-methane
+K00203	formylmethanofuran dehydrogenase [EC:1.2.99.5] [RN:R03015]	Methanogenesis	C1-methane
+K11261	formylmethanofuran dehydrogenase [EC:1.2.99.5] [RN:R03015]	Methanogenesis	C1-methane
+K00672	formylmethanofuran--tetrahydromethanopterin N-formyltransferase [EC:2.3.1.101] [RN:R03390]	Methanogenesis	C1-methane
+K08264	heterodisulfide reductase [EC:1.8.98.1] [RN:R04540]	Methanogenesis	C1-methane
+K08265	heterodisulfide reductase [EC:1.8.98.1] [RN:R04540]	Methanogenesis	C1-methane
+K08264	heterodisulfide reductase [EC:1.8.98.1] [RN:R04540]	Methanogenesis	C1-methane
+K08265	heterodisulfide reductase [EC:1.8.98.1] [RN:R04540]	Methanogenesis	C1-methane
+K08264	heterodisulfide reductase [EC:1.8.98.1] [RN:R04540]	Methanogenesis	C1-methane
+K08265	heterodisulfide reductase [EC:1.8.98.1] [RN:R04540]	Methanogenesis	C1-methane
+K08264	heterodisulfide reductase [EC:1.8.98.1] [RN:R04540]	Methanogenesis	C1-methane
+K08265	heterodisulfide reductase [EC:1.8.98.1] [RN:R04540]	Methanogenesis	C1-methane
+K22480	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22481	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22482	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22480	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22481	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22482	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22480	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22481	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22482	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22480	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22481	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K22482	heterodisulfide reductase 1 [EC:1.8.7.3] [RN:R11931]	Methanogenesis	C1-methane
+K03388	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03389	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03390	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03388	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03389	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03390	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03388	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03389	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03390	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03388	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03389	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K03390	heterodisulfide reductase 2 [EC:1.8.7.3 1.8.98.4 1.8.98.5 1.8.98.6] [RN:R11928 R11931 R11943 R11944]	Methanogenesis	C1-methane
+K14081	methanol corrinoid protein [RN:R09098]	Methanogenesis	C1-methane
+K04480	methanol---5-hydroxybenzimidazolylcobamide Co-methyltransferase [EC:2.1.1.90] [RN:R09098]	Methanogenesis	C1-methane
+K01499	methenyltetrahydromethanopterin cyclohydrolase [EC:3.5.4.27] [RN:R03464]	Methanogenesis	C1-methane
+K00399	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00401	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00402	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00399	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00401	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00402	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00399	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00401	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00402	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00399	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00401	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00402	methyl-coenzyme M reductase [EC:2.8.4.1] [RN:R04541]	Methanogenesis	C1-methane
+K00319	methylenetetrahydromethanopterin dehydrogenase [EC:1.5.99.9] [RN:R04456]	Methanogenesis	C1-methane
+K14082	mtbA; [methyl-Co(III) methylamine-specific corrinoid protein]:coenzyme M methyltransferase [EC:2.1.1.247] [RN:R09998]	Methanogenesis	C1-methane
+K16178	mtbB; dimethylamine---corrinoid protein Co-methyltransferase [EC:2.1.1.249] [RN:R09999]	Methanogenesis	C1-methane
+K16179	mtbC; dimethylamine corrinoid protein [RN:R09999]	Methanogenesis	C1-methane
+K16176	mtmB; methylamine---corrinoid protein Co-methyltransferase [EC:2.1.1.248] [RN:R09998]	Methanogenesis	C1-methane
+K16177	mtmC; monomethylamine corrinoid protein [RN:R09998]	Methanogenesis	C1-methane
+K16954	mtsA; methylthiol:coenzyme M methyltransferase [EC:2.1.1.251]	Methanogenesis	C1-methane
+K14083	mttB; trimethylamine---corrinoid protein Co-methyltransferase [EC:2.1.1.250] [RN:R09124]	Methanogenesis	C1-methane
+K14084	mttC; trimethylamine corrinoid protein [RN:R09124]	Methanogenesis	C1-methane
+K00625	phosphate acetyltransferase [EC:2.3.1.8] [RN:R00230]	Methanogenesis	C1-methane
+K13788	phosphate acetyltransferase [EC:2.3.1.8] [RN:R00230]	Methanogenesis	C1-methane
+K00577	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00578	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00579	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00580	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00581	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00582	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00583	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00584	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00577	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00578	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00579	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00580	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00581	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00582	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00583	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K00584	tetrahydromethanopterin S-methyltransferase [EC:2.1.1.86] [RN:R04347]	Methanogenesis	C1-methane
+K14449	2-methylfumaryl-CoA hydratase [EC:4.2.1.148] [RN:R05076]	3-Hydroxypropionate bi-cycle	carbon fixation
+K14470	2-methylfumaryl-CoA isomerase [EC:5.4.1.3] [RN:R09283]	3-Hydroxypropionate bi-cycle	carbon fixation
+K09709	3-methylfumaryl-CoA hydratase [EC:4.2.1.153] [RN:R09282]	3-Hydroxypropionate bi-cycle	carbon fixation
+K08691	malyl-CoA/(S)-citramalyl-CoA lyase [EC:4.1.3.24 4.1.3.25] [RN:R00473 R00934 R00237]	3-Hydroxypropionate bi-cycle	carbon fixation
+K14467	4-hydroxybutyrate---CoA ligase (AMP-forming) [EC:6.2.1.40] [RN:R09279]	DC/4HP Cycle	carbon fixation
+K15016	3-hydroxybutyryl-CoA dehydratase / 3-hydroxyacyl-CoA dehydrogenase [EC:4.2.1.17 1.1.1.35] [RN:R03026 R01975]	Hydroxypropionate-hydroxybutylate cycle	carbon fixation
+K15039	3-hydroxypropionate dehydrogenase (NADP+) [EC:1.1.1.298] [RN:R09289]	Hydroxypropionate-hydroxybutylate cycle	carbon fixation
+K14466	4-hydroxybutyrate---CoA ligase (AMP-forming) [EC:6.2.1.40] [RN:R09279]	Hydroxypropionate-hydroxybutylate cycle	carbon fixation
+K18861	4-hydroxybutyrate---CoA ligase (AMP-forming) [EC:6.2.1.40] [RN:R09279]	Hydroxypropionate-hydroxybutylate cycle	carbon fixation
+K15017	malonyl-CoA reductase (NADPH) [EC:1.2.1.75] [RN:R00740]	Hydroxypropionate-hydroxybutylate cycle	carbon fixation
+K00198	carbon-monoxide dehydrogenase [EC:1.2.7.4] [RN:R07157]	Wood-Ljungdahl pathway	carbon fixation
+K15230	ATP-citrate lyase [EC:2.3.3.8] [RN:R00352]	rTCA Cycle	carbon fixation
+K15231	ATP-citrate lyase [EC:2.3.3.8] [RN:R00352]	rTCA Cycle	carbon fixation
+K15234	citryl-CoA lyase [EC:4.1.3.34] [RN:R00354]	rTCA Cycle	carbon fixation
+K15232	citryl-CoA synthetase [EC:6.2.1.18] [RN:R01322]	rTCA Cycle	carbon fixation
+K15233	citryl-CoA synthetase [EC:6.2.1.18] [RN:R01322]	rTCA Cycle	carbon fixation
+K00855	phosphoribulokinase [EC:2.7.1.19] [RN:R01523]	Calvin Cycle	carbon fixation
+K01601	ribulose-bisphosphate carboxylase [EC:4.1.1.39] [RN:R00024]	Calvin Cycle	carbon fixation
+K01602	ribulose-bisphosphate carboxylase [EC:4.1.1.39] [RN:R00024]	Calvin Cycle	carbon fixation
+K00194	acetyl-CoA decarbonylase/synthase complex [EC:2.3.1.-] [RN:R10243]	Wood-Ljungdahl pathway	carbon fixation
+K00197	acetyl-CoA decarbonylase/synthase complex [EC:2.3.1.-] [RN:R10243]	Wood-Ljungdahl pathway	carbon fixation
+K14138	acetyl-CoA synthase [EC:2.3.1.169] [RN:R08433]	Wood-Ljungdahl pathway	carbon fixation
+K00281	glycine cleavage system [RN:R01221]	glycine cleavage system 	glycine cleavage system 
+K00283	glycine cleavage system [RN:R01221]	glycine cleavage system 	glycine cleavage system 
+K00382	glycine cleavage system [RN:R01221]	glycine cleavage system 	glycine cleavage system 
+K00605	glycine cleavage system [RN:R01221]	glycine cleavage system 	glycine cleavage system 
+K02437	glycine cleavage system [RN:R01221]	glycine cleavage system 	glycine cleavage system 
+K18005	[NiFe] hydrogenase diaphorase moiety large subunit [EC:1.12.1.2]	hydrogenase	Hydrogenases
+K18006	[NiFe] hydrogenase diaphorase moiety small subunit [EC:1.12.1.2]	hydrogenase	Hydrogenases
+K00437	[NiFe] hydrogenase large subunit [EC:1.12.2.1]	hydrogenase	Hydrogenases
+K18008	[NiFe] hydrogenase small subunit [EC:1.12.2.1]	hydrogenase	Hydrogenases
+K13942	"5,10-methenyltetrahydromethanopterin hydrogenase [EC:1.12.98.2]"	hydrogenase	Hydrogenases
+K05586	bidirectional [NiFe] hydrogenase diaphorase subunit [EC:7.1.1.2]	hydrogenase	Hydrogenases
+K05587	bidirectional [NiFe] hydrogenase diaphorase subunit [EC:7.1.1.2]	hydrogenase	Hydrogenases
+K05588	bidirectional [NiFe] hydrogenase diaphorase subunit [EC:7.1.1.2]	hydrogenase	Hydrogenases
+K00440	coenzyme F420 hydrogenase subunit alpha [EC:1.12.98.1]	hydrogenase	Hydrogenases
+K00441	coenzyme F420 hydrogenase subunit beta [EC:1.12.98.1]	hydrogenase	Hydrogenases
+K00442	coenzyme F420 hydrogenase subunit delta	hydrogenase	Hydrogenases
+K00443	coenzyme F420 hydrogenase subunit gamma [EC:1.12.98.1]	hydrogenase	Hydrogenases
+K14086	ech hydrogenase subunit A	hydrogenase	Hydrogenases
+K14087	ech hydrogenase subunit B	hydrogenase	Hydrogenases
+K14088	ech hydrogenase subunit C	hydrogenase	Hydrogenases
+K14089	ech hydrogenase subunit D	hydrogenase	Hydrogenases
+K14090	ech hydrogenase subunit E	hydrogenase	Hydrogenases
+K14091	ech hydrogenase subunit F	hydrogenase	Hydrogenases
+K14092	energy-converting hydrogenase A subunit A	hydrogenase	Hydrogenases
+K14093	energy-converting hydrogenase A subunit B	hydrogenase	Hydrogenases
+K14094	energy-converting hydrogenase A subunit C	hydrogenase	Hydrogenases
+K14095	energy-converting hydrogenase A subunit D	hydrogenase	Hydrogenases
+K14096	energy-converting hydrogenase A subunit E	hydrogenase	Hydrogenases
+K14097	energy-converting hydrogenase A subunit F	hydrogenase	Hydrogenases
+K14098	energy-converting hydrogenase A subunit G	hydrogenase	Hydrogenases
+K14099	energy-converting hydrogenase A subunit H	hydrogenase	Hydrogenases
+K14100	energy-converting hydrogenase A subunit I	hydrogenase	Hydrogenases
+K14101	energy-converting hydrogenase A subunit J	hydrogenase	Hydrogenases
+K14102	energy-converting hydrogenase A subunit K	hydrogenase	Hydrogenases
+K14103	energy-converting hydrogenase A subunit L	hydrogenase	Hydrogenases
+K14104	energy-converting hydrogenase A subunit M	hydrogenase	Hydrogenases
+K14105	energy-converting hydrogenase A subunit N	hydrogenase	Hydrogenases
+K14106	energy-converting hydrogenase A subunit O	hydrogenase	Hydrogenases
+K14107	energy-converting hydrogenase A subunit P	hydrogenase	Hydrogenases
+K14108	energy-converting hydrogenase A subunit Q	hydrogenase	Hydrogenases
+K14109	energy-converting hydrogenase A subunit R	hydrogenase	Hydrogenases
+K14110	energy-converting hydrogenase B subunit A	hydrogenase	Hydrogenases
+K14111	energy-converting hydrogenase B subunit B	hydrogenase	Hydrogenases
+K14112	energy-converting hydrogenase B subunit C	hydrogenase	Hydrogenases
+K14113	energy-converting hydrogenase B subunit D	hydrogenase	Hydrogenases
+K14114	energy-converting hydrogenase B subunit E	hydrogenase	Hydrogenases
+K14115	energy-converting hydrogenase B subunit F	hydrogenase	Hydrogenases
+K14116	energy-converting hydrogenase B subunit G	hydrogenase	Hydrogenases
+K14117	energy-converting hydrogenase B subunit H	hydrogenase	Hydrogenases
+K14118	energy-converting hydrogenase B subunit I	hydrogenase	Hydrogenases
+K14119	energy-converting hydrogenase B subunit J	hydrogenase	Hydrogenases
+K14120	energy-converting hydrogenase B subunit K	hydrogenase	Hydrogenases
+K14121	energy-converting hydrogenase B subunit L	hydrogenase	Hydrogenases
+K14122	energy-converting hydrogenase B subunit M	hydrogenase	Hydrogenases
+K14123	energy-converting hydrogenase B subunit N	hydrogenase	Hydrogenases
+K14124	energy-converting hydrogenase B subunit O	hydrogenase	Hydrogenases
+K14125	energy-converting hydrogenase B subunit P	hydrogenase	Hydrogenases
+K06862	energy-converting hydrogenase B subunit Q	hydrogenase	Hydrogenases
+K14127	F420-non-reducing hydrogenase iron-sulfur subunit [EC:1.12.99.- 1.8.98.5 1.8.98.6]	hydrogenase	Hydrogenases
+K14126	F420-non-reducing hydrogenase large subunit [EC:1.12.99.- 1.8.98.5]	hydrogenase	Hydrogenases
+K14128	F420-non-reducing hydrogenase small subunit [EC:1.12.99.- 1.8.98.5]	hydrogenase	Hydrogenases
+K00532	ferredoxin hydrogenase [EC:1.12.7.2]	hydrogenase	Hydrogenases
+K06441	ferredoxin hydrogenase gamma subunit [EC:1.12.7.2]	hydrogenase	Hydrogenases
+K00533	ferredoxin hydrogenase large subunit [EC:1.12.7.2]	hydrogenase	Hydrogenases
+K00534	ferredoxin hydrogenase small subunit [EC:1.12.7.2]	hydrogenase	Hydrogenases
+K18016	membrane-bound hydrogenase subunit alpha [EC:1.12.7.2]	hydrogenase	Hydrogenases
+K18017	membrane-bound hydrogenase subunit beta [EC:1.12.7.2]	hydrogenase	Hydrogenases
+K18023	membrane-bound hydrogenase subunit mbhJ [EC:1.12.7.2]	hydrogenase	Hydrogenases
+K14070	methanophenazine hydrogenase [EC:1.12.98.3]	hydrogenase	Hydrogenases
+K14069	"methanophenazine hydrogenase, cytochrome b subunit [EC:1.12.98.3]"	hydrogenase	Hydrogenases
+K14068	"methanophenazine hydrogenase, large subunit [EC:1.12.98.3]"	hydrogenase	Hydrogenases
+K00436	NAD-reducing hydrogenase large subunit [EC:1.12.1.2]	hydrogenase	Hydrogenases
+K18007	NAD-reducing hydrogenase small subunit [EC:1.12.1.2]	hydrogenase	Hydrogenases
+K18330	NADP-reducing hydrogenase subunit HndA [EC:1.12.1.3]	hydrogenase	Hydrogenases
+K17992	NADP-reducing hydrogenase subunit HndB [EC:1.12.1.3]	hydrogenase	Hydrogenases
+K18331	NADP-reducing hydrogenase subunit HndC [EC:1.12.1.3]	hydrogenase	Hydrogenases
+K18332	NADP-reducing hydrogenase subunit HndD [EC:1.12.1.3]	hydrogenase	Hydrogenases
+K19640	"putative two-component system protein, hydrogenase maturation factor HypX/HoxX"	hydrogenase	Hydrogenases
+K23549	uptake hydrogenase large subunit [EC:1.12.99.6]	hydrogenase	Hydrogenases
+K23548	uptake hydrogenase small subunit [EC:1.12.99.6]	hydrogenase	Hydrogenases
+K10944	ammonia monooxygenase [EC:1.14.99.39] [RN:R00148]	Complete nitrification	Nitrogen
+K10945	ammonia monooxygenase [EC:1.14.99.39] [RN:R00148]	Complete nitrification	Nitrogen
+K10946	ammonia monooxygenase [EC:1.14.99.39] [RN:R00148]	Complete nitrification	Nitrogen
+K10535	hydroxylamine oxidase [EC:1.7.2.6] [RN:R10164]	Complete nitrification	Nitrogen
+K00370	nitrite oxidoreductase [EC:1.7.99.4] [RN:R00798]	Complete nitrification	Nitrogen
+K00371	nitrite oxidoreductase [EC:1.7.99.4] [RN:R00798]	Complete nitrification	Nitrogen
+K10944	ammonia monooxygenase [EC:1.14.99.39] [RN:R00148]	Ammonia oxidation	Nitrogen
+K10945	ammonia monooxygenase [EC:1.14.99.39] [RN:R00148]	Ammonia oxidation	Nitrogen
+K10946	ammonia monooxygenase [EC:1.14.99.39] [RN:R00148]	Ammonia oxidation	Nitrogen
+K10535	hydroxylamine oxidase [EC:1.7.2.6] [RN:R10164]	Ammonia oxidation	Nitrogen
+K20932	hzs; Hydrazine synthase subunit (aka: hzsC) [EC:1.7.2.7] [RN:R09799]	Ammonia oxidation	Nitrogen
+K20933	hzs; Hydrazine synthase subunit (aka: hzsC) [EC:1.7.2.7] [RN:R09799]	Ammonia oxidation	Nitrogen
+K20934	hzs; Hydrazine synthase subunit (aka: hzsC) [EC:1.7.2.7] [RN:R09799]	Ammonia oxidation	Nitrogen
+K20935	hzs; Hydrazine synthase subunit (aka: hzsC) [EC:1.7.2.7] [RN:R09799]	Ammonia oxidation	Nitrogen
+K00370	"nitrate reductase / nitrite oxidoreductase, alpha subunit"	Nitrite oxidation	Nitrogen
+K00371	"nitrate reductase / nitrite oxidoreductase, beta subunit"	Nitrite oxidation	Nitrogen
+K20935	hdh; hydrazine dehydrogenase	Annamox	Nitrogen
+K10535	"hox, hydroxylamine oxidase [EC:1.7.2.6] [RN:R10164]"	Annamox	Nitrogen
+K20932	hzs; Hydrazine synthase subunit (aka: hzsC) [EC:1.7.2.7] [RN:R09799]	Annamox	Nitrogen
+K20933	hzs; Hydrazine synthase subunit (aka: hzsC) [EC:1.7.2.7] [RN:R09799]	Annamox	Nitrogen
+K20934	hzs; Hydrazine synthase subunit (aka: hzsC) [EC:1.7.2.7] [RN:R09799]	Annamox	Nitrogen
+K20935	hzs; Hydrazine synthase subunit (aka: hzsC) [EC:1.7.2.7] [RN:R09799]	Annamox	Nitrogen
+K00368	"nir, nitrite reductase (NO-forming) [EC:1.7.2.1] [RN:R00783 R00785]"	Annamox	Nitrogen
+K15864	"nir, nitrite reductase (NO-forming) [EC:1.7.2.1] [RN:R00783 R00785]"	Annamox	Nitrogen
+K00370	"nxr, nitrite oxidoreductase [EC:1.7.99.4] [RN:R00798]"	Annamox	Nitrogen
+K00371	"nxr, nitrite oxidoreductase [EC:1.7.99.4] [RN:R00798]"	Annamox	Nitrogen
+K17222	soxA; sulfur-oxidizing protein SoxA	Thiosulfate oxidation	Sulfur
+K22622	soxD; S-disulfanyl-L-cysteine oxidoreductase SoxD [EC:1.8.2.6]	Thiosulfate oxidation	Sulfur
+K17223	soxX; sulfur-oxidizing protein SoxX	Thiosulfate oxidation	Sulfur
+K17227	soxZ; sulfur-oxidizing protein SoxZ	Thiosulfate oxidation	Sulfur
+K00394	aprA-adenylylsulfate reductase-subunit A [EC:1.8.99.2]	Sulfite oxidation	Sulfur
+K00958	sat-sulfate adenylyltransferase [EC:2.7.7.4]	Sulfite oxidation	Sulfur
+K17229	fccB-sulfide dehydrogenase [flavocytochrome c] flavoprotein chain [EC:1.8.2.3]	Sulfide oxidation	Sulfur
+K17218	sqr-sulfide:quinone oxidoreductase [EC:1.8.5.4]	Sulfide oxidation	Sulfur
+K03119	tauD-taurine dioxygenase [EC:1.14.11.17]	Sulfite production from org. sulfur	Sulfur
+K11180	dsrA-dissimilatory sulfite reductase alpha subunit [EC:1.8.99.5]	Sulfur oxidation	Sulfur
+K11181	dsrB-dissimilatory sulfite reductase beta subunit [EC:1.8.99.5]	Sulfur oxidation	Sulfur
+K17725	sdo-sulfur dioxygenase [EC:1.13.11.18]	Sulfur oxidation	Sulfur
+K16952	sor-sulfur oxygenase/reductase [EC:1.13.11.55]	Sulfur oxidation	Sulfur
+K08352	phsA-thiosulfate reductase / polysulfide reductase chain A [EC:1.8.5.5]	Thiosulfate disproportionation	Sulfur
+K17224	soxB-S-sulfosulfanyl-L-cysteine sulfohydrolase [EC:3.1.6.20]	Thiosulfate oxidation	Sulfur
+K17225	soxC-sulfane dehydrogenase subunit SoxC	Thiosulfate oxidation	Sulfur
+K17226	soxY-sulfur-oxidizing protein SoxY	Thiosulfate oxidation	Sulfur

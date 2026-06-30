@@ -1,0 +1,335 @@
+---
+title: "OC17_MAGs_catabolic_potential"
+output: html_document
+date: "2024-05-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+library(data.table)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(purrr)
+library(ggplot2)
+library(patchwork)
+library(ggthemes)
+library(RColorBrewer)
+library(ggh4x)
+library(stringr)
+library(gt)
+library(gridExtra)
+library(gtExtras)
+library(ggthemes)
+```
+
+```{r message=FALSE, warning=FALSE}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/"
+APEM_MAGs = read_csv(paste(rootdir, "refined_analysis/refined_auto_MAGs_edited_06152026.csv", sep = ""))
+APEM_info = read_csv(paste(rootdir, "refined_analysis/refined_gtdb/gtdb_summary_06152026.csv", sep = ""))
+coverm = read_csv(paste(rootdir, "refined_analysis/merged_coverM/refined_coverM_all_06152026.csv", sep = ""))
+DRAM = read_tsv(paste(rootdir, "DRAM_tables/DRAM_energy_pathways_v5.tsv", sep = ""), col_names = TRUE)
+catabolism_MAGs = read.csv(paste0(rootdir, "/refined_analysis/refined_tables/catabolism_MAGs_06152026.csv"), col.names = "genome")
+auto_MAGs = filter(APEM_MAGs, genome %in% catabolism_MAGs$genome)
+```
+
+Figure 4 - cleaning up df for plotting
+```{r}
+auto_MAGs_simple = filter(auto_MAGs, auto_MAGs$header != "C1")
+auto_MAGs_simple = filter(auto_MAGs, auto_MAGs$header != "C1-methane")
+auto_MAGs_simple = filter(auto_MAGs_simple, auto_MAGs_simple$header != "glycine cleavage system")
+auto_MAGs_simple = filter(auto_MAGs_simple, auto_MAGs_simple$header != "Photosynthesis")
+auto_MAGs_simple = filter(auto_MAGs_simple, auto_MAGs_simple$header != "Oxygen")
+
+auto_MAGs_simple$phylum = sub("\\;c.*", "", auto_MAGs_simple$classification)
+auto_MAGs_simple$class = sub("\\;o.*", "", auto_MAGs_simple$classification)
+auto_MAGs_simple$kingdom = sub("\\;p.*", "", auto_MAGs_simple$classification)
+auto_MAGs_simple$phylum = sub(".*p__", "", auto_MAGs_simple$phylum)
+auto_MAGs_simple$class = sub(".*c__", "", auto_MAGs_simple$class)
+auto_MAGs_simple$kingdom = sub(".*d__", "", auto_MAGs_simple$kingdom)
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(kingdom = ifelse(kingdom == "Bacteria", "B", kingdom))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(kingdom = ifelse(kingdom == "Archaea", "A", kingdom))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(phylum = ifelse(class == "Gammaproteobacteria", "Gammaproteobacteria", phylum))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(phylum = ifelse(class == "Alphaproteobacteria", "Alphaproteobacteria", phylum))
+
+auto_MAGs_simple$label = paste(auto_MAGs_simple$kingdom, auto_MAGs_simple$phylum, sep = "_")
+
+auto_MAGs_simple$header = replace(auto_MAGs_simple$header, auto_MAGs_simple$header=="carbon fixation", "Carbon Fixation")
+
+auto_MAGs_simple = filter(auto_MAGs_simple, auto_MAGs_simple$present ==1)
+
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(module == "3-Hydroxypropionate bi-cycle", "A_3HP bi-cycle", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(module = ifelse(module == "3-Hydroxypropionate bi-cycle", "3HP bi-cycle", module))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(module == "rTCA Cycle", "A_rTCA", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(module == "Calvin Cycle", "A_CBB", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(module = ifelse(module == "Calvin Cycle", "CBB", module))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(module == "Hydroxypropionate-hydroxybutylate cycle", "A_3HP/4HB", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(module = ifelse(module == "Hydroxypropionate-hydroxybutylate cycle", "3HP/4HB", module))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(header == "methanotrophy", "CH4", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(header == "CO oxidation", "CO", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(module = ifelse(module == "amaerobic CO Oxidation", "anaerobic CO Oxidation", module))
+
+#drop K00441 since its not energy producing
+auto_MAGs_simple = auto_MAGs_simple[-(which(auto_MAGs_simple$KO == "K00441")),]
+
+subset90 = subset(auto_MAGs_simple, completeness >= 85)
+length(unique(subset90$genome))
+
+length(unique(auto_MAGs_simple$genome))
+
+```
+
+```{r}
+DRAM_pathways = DRAM
+DRAM_pathways = filter(DRAM_pathways, DRAM_pathways$header != "C1")
+DRAM_pathways = filter(DRAM_pathways, DRAM_pathways$header != "C1-methane")
+DRAM_pathways = filter(DRAM_pathways, DRAM_pathways$header != "glycine cleavage system")
+DRAM_pathways = filter(DRAM_pathways, DRAM_pathways$header != "Photosynthesis")
+DRAM_pathways = filter(DRAM_pathways, DRAM_pathways$header != "Oxygen")
+
+DRAM_pathways$header = replace(DRAM_pathways$header, DRAM_pathways$header=="carbon fixation", "Carbon Fixation")
+
+DRAM_pathways = DRAM_pathways %>% mutate(header = ifelse(module == "3-Hydroxypropionate bi-cycle", "A_3HP bi-cycle", header))
+DRAM_pathways = DRAM_pathways %>% mutate(header = ifelse(module == "rTCA Cycle", "A_rTCA", header))
+DRAM_pathways = DRAM_pathways %>% mutate(header = ifelse(module == "Calvin Cycle", "A_CBB", header))
+DRAM_pathways = DRAM_pathways %>% mutate(header = ifelse(module == "Hydroxypropionate-hydroxybutylate cycle", "A_3HP/4HB", header))
+DRAM_pathways = DRAM_pathways %>% mutate(header = ifelse(header == "methanotrophy", "CH4", header))
+DRAM_pathways = DRAM_pathways %>% mutate(header = ifelse(header == "CO oxidation", "CO", header))
+
+
+
+df2 = data.frame(headers = c("A_3HP Bicycle", "A_3HP/4HB", "A_CBB", "CH4", "CO", "Nitrogen", "Sulfur"), KO_count= c(4, 1, 3, 3, 4, 5, 16))
+df2$relative = df2$KO_count/max(df2$KO_count)
+```
+
+completeness heatmap
+```{r}
+completeness_df = auto_MAGs_simple %>%
+  distinct(genome, .keep_all = TRUE) %>%
+  select(genome, label, completeness)  
+
+completeness_df$Completeness = as.numeric(completeness_df$completeness)
+
+df = completeness_df %>% count(completeness_df$label)
+df$relative = df$n/max(df$n)
+df = df %>% mutate(relative = ifelse(relative <= "0.15", "0.15", relative))
+
+completeness_df <- completeness_df %>%
+  arrange(label, genome, desc(Completeness))
+
+completeness_df$label <- factor(completeness_df$label, levels = unique(completeness_df$label))
+
+completeness_plot = ggplot(completeness_df, aes(x = Completeness, y = genome)) +
+  geom_bar(stat = "identity", position = "identity", fill = "gray85") +
+  labs(title = "Genome Completeness Bar Plot", x = "Completeness (%)", y = "") +
+  coord_cartesian(xlim = c(50, 100)) +
+  theme_few() +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1), 
+    axis.text.y = element_blank(),    # Remove y-axis text
+    axis.ticks.y = element_blank(),   # Remove y-axis ticks
+    strip.text = element_blank()      # Remove facet headers
+  ) +
+  facet_wrap(~ label, ncol = 1, scales = "free_y") +
+  force_panelsizes(rows = df$relative) 
+
+completeness_plot
+
+c_plot = ggplot(completeness_df, aes(x = Completeness, y = genome)) +
+  geom_bar(stat = "identity", position = "identity", fill = "gray85") +
+  labs(x = "Completeness\n(%)") +
+  coord_cartesian(xlim = c(50, 100)) +
+  theme_few() +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1, size = 24), 
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),    
+    axis.ticks.y = element_blank(),   # Remove y-axis ticks
+    strip.text = element_blank(), # Remove facet headers
+    axis.title.x = element_text(size = 24)
+  )  +
+  facet_wrap(~ label, ncol = 1, scales = "free_y") +
+  force_panelsizes(rows = df$relative) 
+
+c_plot
+```
+
+```{r}
+coverm$Sample = paste(coverm$site, coverm$depth, sep = "_")
+coverm_QC = filter(coverm, covered_fraction >= 0.50)
+sample_cov = coverm_QC %>% 
+  group_by(Sample) %>% 
+  summarise(Mean = sum(Mean))
+
+coverm_QC = left_join(coverm_QC, sample_cov, "Sample")
+coverm_QC <- coverm_QC %>% 
+       rename("sample_cov" = "Mean.y")
+coverm_QC <- coverm_QC %>% 
+       rename("genome_cov" = "Mean.x")
+coverm_QC$relative = coverm_QC$genome_cov/coverm_QC$sample_cov
+
+coverm_small = select(coverm_QC, c(Sample, genome, relative))
+
+auto_genomes = as.list(completeness_df$genome)
+
+auto_coverm <- coverm_small[coverm_small$genome %in% auto_genomes, ]
+
+auto_coverm$relative = auto_coverm$relative*100
+
+auto_coverm = merge(auto_coverm, completeness_df, by = "genome")
+ 
+auto_coverm <- auto_coverm %>%
+  arrange(label, desc(Completeness))
+
+abundance_plot = ggplot(auto_coverm, aes(y = genome, x = relative)) +
+  geom_boxplot(color = "gray50") +
+  labs(title = "Boxplot of Relative Values Faceted by Label", x = "Relative Abundance %", y = "Genome") +
+  theme_few() + 
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1), 
+    axis.text.y = element_blank(),    # Remove y-axis text
+    axis.ticks.y = element_blank(),   # Remove y-axis ticks
+    strip.text = element_blank()      # Remove facet headers
+  ) +
+  facet_wrap(~ label, ncol = 1, scales = "free_y") + 
+  force_panelsizes(rows = df$relative) 
+
+abundance_plot
+
+
+a_plot = ggplot(auto_coverm, aes(y = genome, x = relative)) +
+  geom_boxplot(color = "gray50") +
+  labs(x = "Relative % \nAbundance") +
+  theme_few() + 
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 1, size = 24), 
+    axis.text.y = element_blank(),
+    axis.title.y = element_blank(),    
+    axis.ticks.y = element_blank(),   # Remove y-axis ticks
+    strip.text = element_blank(), # Remove facet headers
+    axis.title.x = element_text(size = 24)
+  ) +
+  facet_wrap(~ label, ncol = 1, scales = "free_y") + 
+  force_panelsizes(rows = df$relative) 
+
+a_plot
+
+```
+
+```{r}
+
+phylum_plot = ggplot(auto_MAGs_simple, aes(x = KO, y = genome, fill = module, alpha = present, width = 1, height = 1)) +
+  geom_tile(colour = "white") +
+  facet_grid(col = vars(header), rows = vars(label), scales = "free", labeller = label_wrap_gen(width=10), switch = "y") + 
+  scale_alpha_identity(guide = "none") +
+  ylab("Putative Autotrophic MAGs") +
+  xlab("KO Number") +
+  force_panelsizes(cols = c(0.25, 0.0625, 0.1875, 0.1875, 0.25, 0.3125, 1), rows = df$relative) +
+  theme_bw() +
+  theme(panel.grid.major = element_blank(),
+        axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1, size = 20),
+#        axis.text.y.left = element_blank(),
+        axis.ticks.x=element_blank(),
+        axis.ticks.y=element_blank(),
+        axis.title.y.left = element_text(size = 32),
+        axis.title.x = element_text(size = 32, ),
+        legend.position = "bottom",
+        legend.text=element_text(size=24),
+        strip.text = element_text(size = 30),
+        strip.text.y.left = element_text(angle = 0),
+        strip.background = element_blank()) +
+        guides(shape = guide_legend(override.aes = list(size = 2)),
+               color = guide_legend(override.aes = list(size = 2)))
+
+ggsave(paste(rootdir, "refined_analysis/refined_figures/06152026/refined_figure4_labels_06152026.pdf", sep = ""), plot = phylum_plot, width = 28, height = 36, units = "in")
+```
+
+```{r}
+colnames(auto_MAGs_simple)
+
+# X: Genomes with ANY Sulfur gene
+sulfur_genomes <- auto_MAGs_simple %>%
+  filter(header == "Sulfur", present == 1) %>%
+  select(genome) %>%
+  distinct()
+
+X <- nrow(sulfur_genomes)
+#114 genomes
+
+# Genomes with Sulfur gene K00958 (sat)
+k00958_genomes <- auto_MAGs_simple %>%
+  filter(header == "Sulfur",
+         KO == "K00958",
+         present == 1) %>%
+  select(genome) %>%
+  distinct()
+#44 genomes
+
+# Genomes with Sulfur gene K00394 (apr)
+k00394_genomes <- auto_MAGs_simple %>%
+  filter(header == "Sulfur",
+         KO == "K00394",
+         present == 1) %>%
+  select(genome) %>%
+  distinct()
+#23 genomes
+
+# Get the unique genomes that have "K00958" but not "K00394" (only sat, not apr)
+nonsulfite_genomes <- setdiff(k00958_genomes$genome, k00394_genomes$genome)
+#26 genomes
+
+#114-26 = 88 genomes capable of any type of sulfur oxidation, including sulfite
+
+# Genomes with BOTH apr and sat genes (sulfite oxidation)
+both_sulfur_genomes <- intersect(
+  k00958_genomes$genome,
+  k00394_genomes$genome
+)
+#18 genomes capable of sulfite oxidation
+
+#genomes with marker genes for sulfur oxidation, excluding those who only encode sat (but includes all other sulfur genes such as dsrAB and sox)
+complete_sulfur_genomes <- setdiff(
+  sulfur_genomes$genome,
+  nonsulfite_genomes
+)
+#88 genomes
+
+# Y: Genomes with ONLY one sulfite oxidation gene (partial pathway)
+only_one_sulfur_genomes <- setdiff(
+  union(k00958_genomes$genome, k00394_genomes$genome),
+  both_sulfur_genomes
+)
+#33 genomes who only have one gene for sulfite oxidation (either apr or sat)
+
+# Genomes with A_3HP bi-cycle
+A3HP_genomes <- auto_MAGs_simple %>%
+  filter(header == "A_3HP bi-cycle", present == 1) %>%
+  select(genome) %>%
+  distinct()
+#109 genomes
+
+# Final: Genomes with complete Sulfur pathway AND A_3HP bi-cycle
+A3HP_and_complete_sulfur_genomes <- intersect(
+  complete_sulfur_genomes,
+  A3HP_genomes$genome
+)
+
+final_count <- length(A3HP_and_complete_sulfur_genomes)
+final_count
+#78 genomes
+```
+
+```{r}
+layout = "
+AAAAAAAABC
+"
+
+final = phylum_plot + c_plot + a_plot + plot_layout(design = layout)
+
+final
+
+ggsave(paste(rootdir, "refined_analysis/refined_figures/06152026/composite_figure4_06152026.pdf", sep = ""), plot = final, width = 24, height = 33, units = "in")
+```

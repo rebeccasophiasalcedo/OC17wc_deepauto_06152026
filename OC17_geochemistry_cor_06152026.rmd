@@ -1,0 +1,287 @@
+---
+title: "OC17 gene abundance and geochemistry"
+output: html_document
+date: "`r Sys.Date()`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+library(data.table)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(patchwork)
+library(ggthemes)
+library(RColorBrewer)
+```
+
+
+```{r}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/gene_based/geochem/"
+abundir = "/scratch/users/rsalcedo/OC17wc_deepauto/gene_based/R_output/"
+```
+
+```{r}
+geochem_original = read.csv(paste(rootdir, "arandia-gorostidi_etal_isme_supptables_urea_tableS1.csv", sep = ""))
+geochem = geochem_original
+geochem$sample = paste(geochem$site, "m", geochem$depth, "m", sep = "")
+
+print(colnames(geochem))
+
+geochem = select(geochem, c("sample", "site", "depth", "Salinity", "Temperature_C", "Fluorescence", "Dissolved_oxygen_sat.", "Average_urea_concentration_nM", "Ammonium_concentration_nM", "Average_nitrate_concentration_uM"))
+```
+
+```{r message=FALSE, warning=FALSE}
+pathways = read.csv(paste(abundir, "transect_pathwaydf.csv", sep = ""))
+pathways$X = NULL
+KOs = read.csv(paste(abundir, "transect_KOdf.csv", sep = ""))
+KOs$X = NULL
+
+pathway_no_sc = subset(pathways, pathways$metabolism!="single copy")
+
+totals = pathway_no_sc %>% group_by(site_m, depth_m) %>% summarize(sum(normalized_cov))
+totals <- totals %>% 
+       rename("auto_normcov" = "sum(normalized_cov)")
+totals$sample = paste(totals$site_m, "m", totals$depth_m, "m", sep = "")
+
+pathway_no_sc = pathway_no_sc %>%
+  rename("auto_normcov" = "normalized_cov")
+pathway_no_sc$sample = paste(pathway_no_sc$site_m, "m", pathway_no_sc$depth_m, "m", sep = "")
+
+```
+
+```{r}
+pathway_geochem = merge(geochem, pathway_no_sc, by = "sample")
+colnames(pathway_geochem)
+pathway_geochem = select(pathway_geochem, c("sample", "site", "depth", "Salinity", "Temperature_C", "Fluorescence", "Dissolved_oxygen_sat.", "Average_urea_concentration_nM", "Ammonium_concentration_nM", "Average_nitrate_concentration_uM", "pathway", "auto_normcov"))
+totals_geochem = merge(geochem, totals, by = "sample")
+```
+total - all depths
+```{r}
+# List of variables to test
+variables <- c("sample", "site", "depth", "Salinity", "Temperature_C", "Fluorescence", "Dissolved_oxygen_sat.", "Average_urea_concentration_nM", "Ammonium_concentration_nM", "Average_nitrate_concentration_uM")
+
+calculate_correlation <- function(df) {
+  results <- data.frame(Variable = character(), 
+                        Correlation = numeric(), 
+                        P.Value = numeric(), 
+                        Adjusted.P.Value = numeric(), 
+                        stringsAsFactors = FALSE)
+  
+  for (var in variables) {
+    x <- df[[var]]
+    y <- df$auto_normcov
+    
+    valid_indices <- complete.cases(x, y) & is.finite(x) & is.finite(y)
+    x <- x[valid_indices]
+    y <- y[valid_indices]
+    
+    if (length(unique(x)) > 1 && length(unique(y)) > 1) {
+      print(paste("Processing variable:", var))
+      print(paste("Unique values in", var, ":", length(unique(x))))
+      print(paste("Unique values in auto_normcov:", length(unique(y))))
+      
+      test <- try(cor.test(x, y, method = "pearson"), silent = TRUE)
+      
+      if (class(test) != "try-error" && !is.null(test$estimate)) {
+        results <- rbind(results, 
+                         data.frame(Variable = var, 
+                                    Correlation = test$estimate, 
+                                    P.Value = test$p.value,
+                                    Adjusted.P.Value = p.adjust(test$p.value, method = "bonferroni", n = length(variables)),
+                                    stringsAsFactors = FALSE))
+      } else {
+        print(paste("Skipping variable:", var, "- correlation not computed"))
+      }
+    } else {
+      print(paste("Skipping variable:", var, "- insufficient unique values"))
+    }
+  }
+  
+  return(results)
+}
+
+# Apply the function to each site
+tot_correlation_results <- totals_geochem %>%
+  group_by(site) %>%
+  group_modify(~ calculate_correlation(.x)) %>%
+  ungroup()
+
+# View the results
+print(tot_correlation_results)
+
+write.csv(tot_correlation_results, paste0(rootdir, "/totals_correlation_results.csv"), row.names = FALSE)
+
+totals_geochem %>%
+  count(site)
+
+
+```
+pathway - all depths
+```{r}
+calculate_correlation <- function(df, num_tests) {
+  results <- data.frame(Variable = character(), 
+                        Correlation = numeric(), 
+                        P.Value = numeric(), 
+                        Adjusted.P.Value = numeric(), 
+                        stringsAsFactors = FALSE)
+  
+  for (var in variables) {
+    x <- df[[var]]
+    y <- df$auto_normcov
+    
+    valid_indices <- complete.cases(x, y) & is.finite(x) & is.finite(y)
+    x <- x[valid_indices]
+    y <- y[valid_indices]
+    
+    if (length(unique(x)) > 1 && length(unique(y)) > 1) {
+      print(paste("Processing variable:", var))
+      print(paste("Unique values in", var, ":", length(unique(x))))
+      print(paste("Unique values in auto_normcov:", length(unique(y))))
+      
+      test <- try(cor.test(x, y, method = "pearson"), silent = TRUE)
+      
+      if (class(test) != "try-error" && !is.null(test$estimate)) {
+        results <- rbind(results, 
+                         data.frame(Variable = var, 
+                                    Correlation = test$estimate, 
+                                    P.Value = test$p.value,
+                                    Adjusted.P.Value = p.adjust(test$p.value, method = "bonferroni", n = num_tests),
+                                    stringsAsFactors = FALSE))
+      } else {
+        print(paste("Skipping variable:", var, "- correlation not computed"))
+      }
+    } else {
+      print(paste("Skipping variable:", var, "- insufficient unique values"))
+    }
+  }
+  
+  return(results)
+}
+
+correlation_results_pathways <- pathway_geochem %>%
+  group_by(pathway, site) %>%
+  group_modify(~ calculate_correlation(.x, length(variables))) %>%
+  ungroup()
+
+print(correlation_results_pathways)
+
+write.csv(correlation_results_pathways, paste0(rootdir, "/pathway_correlation_results.csv"), row.names = FALSE)
+
+```
+total - excluding 50m
+```{r}
+calculate_correlation <- function(df) {
+  df <- df %>% filter(depth != 50)
+  results <- data.frame(Variable = character(), 
+                        Correlation = numeric(), 
+                        P.Value = numeric(), 
+                        Adjusted.P.Value = numeric(), 
+                        stringsAsFactors = FALSE)
+  
+  for (var in variables) {
+    x <- df[[var]]
+    y <- df$auto_normcov
+    
+    valid_indices <- complete.cases(x, y) & is.finite(x) & is.finite(y)
+    x <- x[valid_indices]
+    y <- y[valid_indices]
+    
+    if (length(unique(x)) > 1 && length(unique(y)) > 1) {
+      print(paste("Processing variable:", var))
+      print(paste("Unique values in", var, ":", length(unique(x))))
+      print(paste("Unique values in auto_normcov:", length(unique(y))))
+      
+      test <- try(cor.test(x, y, method = "pearson"), silent = TRUE)
+      
+      if (class(test) != "try-error" && !is.null(test$estimate)) {
+        results <- rbind(results, 
+                         data.frame(Variable = var, 
+                                    Correlation = test$estimate, 
+                                    P.Value = test$p.value,
+                                    Adjusted.P.Value = p.adjust(test$p.value, method = "bonferroni", n = length(variables)),
+                                    stringsAsFactors = FALSE))
+      } else {
+        print(paste("Skipping variable:", var, "- correlation not computed"))
+      }
+    } else {
+      print(paste("Skipping variable:", var, "- insufficient unique values"))
+    }
+  }
+  
+  return(results)
+}
+
+tot50_correlation_results <- totals_geochem %>%
+  group_by(site) %>%
+  group_modify(~ calculate_correlation(.x)) %>%
+  ungroup()
+
+print(tot50_correlation_results)
+
+write.csv(tot50_correlation_results, paste0(rootdir, "/totals50_correlation_results.csv"), row.names = FALSE)
+
+
+```
+
+pathways - excluding 50m
+```{r}
+calculate_correlation <- function(df, num_tests) {
+  df <- df %>% filter(depth != 50)
+  
+  results <- data.frame(Variable = character(), 
+                        Correlation = numeric(), 
+                        P.Value = numeric(), 
+                        Adjusted.P.Value = numeric(), 
+                        stringsAsFactors = FALSE)
+  
+  for (var in variables) {
+    x <- df[[var]]
+    y <- df$auto_normcov
+    
+    valid_indices <- complete.cases(x, y) & is.finite(x) & is.finite(y)
+    x <- x[valid_indices]
+    y <- y[valid_indices]
+    
+    if (length(unique(x)) > 1 && length(unique(y)) > 1) {
+      print(paste("Processing variable:", var))
+      print(paste("Unique values in", var, ":", length(unique(x))))
+      print(paste("Unique values in auto_normcov:", length(unique(y))))
+      
+      test <- try(cor.test(x, y, method = "pearson"), silent = TRUE)
+      
+      if (class(test) != "try-error" && !is.null(test$estimate)) {
+        results <- rbind(results, 
+                         data.frame(Variable = var, 
+                                    Correlation = test$estimate, 
+                                    P.Value = test$p.value,
+                                    Adjusted.P.Value = p.adjust(test$p.value, method = "bonferroni", n = num_tests),
+                                    stringsAsFactors = FALSE))
+      } else {
+        print(paste("Skipping variable:", var, "- correlation not computed"))
+      }
+    } else {
+      print(paste("Skipping variable:", var, "- insufficient unique values"))
+    }
+  }
+  
+  return(results)
+}
+
+correlation_results_pathways50 <- pathway_geochem %>%
+  group_by(pathway, site) %>%
+  group_modify(~ calculate_correlation(.x, length(variables))) %>%
+  ungroup()
+
+print(correlation_results_pathways50)
+
+write.csv(correlation_results_pathways50, paste0(rootdir, "/pathway50_correlation_results.csv"), row.names = FALSE)
+
+
+```
+

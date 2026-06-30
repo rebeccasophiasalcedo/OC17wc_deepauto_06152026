@@ -1,0 +1,189 @@
+---
+title: "refined mags with two genes for sulfite oxidation"
+output: html_document
+date: "2024-07-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+library(data.table)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(purrr)
+library(ggplot2)
+library(patchwork)
+library(ggthemes)
+library(RColorBrewer)
+library(ggh4x)
+```
+
+```{r message=FALSE, warning=FALSE}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/"
+auto_MAGs = read_csv(paste(rootdir, "refined_analysis/refined_auto_MAGs_edited_06152026.csv", sep = ""))
+```
+
+Figure 4 - cleaning up df for plotting
+```{r}
+auto_MAGs_simple = filter(auto_MAGs, auto_MAGs$header != "C1")
+auto_MAGs_simple = filter(auto_MAGs, auto_MAGs$header != "C1-methane")
+auto_MAGs_simple = filter(auto_MAGs_simple, auto_MAGs_simple$header != "glycine cleavage system")
+auto_MAGs_simple = filter(auto_MAGs_simple, auto_MAGs_simple$header != "Photosynthesis")
+auto_MAGs_simple = filter(auto_MAGs_simple, auto_MAGs_simple$header != "Oxygen")
+
+auto_MAGs_simple$phylum = sub("\\;c.*", "", auto_MAGs_simple$classification)
+auto_MAGs_simple$class = sub("\\;o.*", "", auto_MAGs_simple$classification)
+auto_MAGs_simple$kingdom = sub("\\;p.*", "", auto_MAGs_simple$classification)
+auto_MAGs_simple$phylum = sub(".*p__", "", auto_MAGs_simple$phylum)
+auto_MAGs_simple$class = sub(".*c__", "", auto_MAGs_simple$class)
+auto_MAGs_simple$kingdom = sub(".*d__", "", auto_MAGs_simple$kingdom)
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(kingdom = ifelse(kingdom == "Bacteria", "B", kingdom))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(kingdom = ifelse(kingdom == "Archaea", "A", kingdom))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(phylum = ifelse(class == "Gammaproteobacteria", "Gammaproteobacteria", phylum))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(phylum = ifelse(class == "Alphaproteobacteria", "Alphaproteobacteria", phylum))
+
+auto_MAGs_simple$label = paste(auto_MAGs_simple$kingdom, auto_MAGs_simple$phylum, sep = "_")
+
+auto_MAGs_simple$header = replace(auto_MAGs_simple$header, auto_MAGs_simple$header=="carbon fixation", "Carbon Fixation")
+
+auto_MAGs_simple = filter(auto_MAGs_simple, auto_MAGs_simple$present ==1)
+
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(module == "3-Hydroxypropionate bi-cycle", "A_3HP bi-cycle", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(module == "rTCA Cycle", "A_rTCA", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(module == "Calvin Cycle", "A_CBB", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(module == "Hydroxypropionate-hydroxybutylate cycle", "A_3HP/4HB", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(header == "methanotrophy", "CH4", header))
+auto_MAGs_simple = auto_MAGs_simple %>% mutate(header = ifelse(header == "CO oxidation", "CO", header))
+
+#drop K00441 since its not energy producing
+auto_MAGs_simple = auto_MAGs_simple[-(which(auto_MAGs_simple$KO == "K00441")),]
+```
+
+```{r}
+sulfite = filter(auto_MAGs_simple, auto_MAGs_simple$module == "Sulfite oxidation")
+#sum that data by genome to find the total carbon fixation genes in each genome
+aa = aggregate(present ~ genome, data=sulfite, FUN=sum)
+#subset the above df to get a list of genomes that have at least two genes involved in carbon fixation
+sulfite_MAGs = filter(aa, aa$present >= 2)
+#19 genomes
+sulfite_data = subset(auto_MAGs_simple, (genome %in% sulfite_MAGs$genome))
+length(unique(sulfite_data$genome))
+
+k00958_genomes <- auto_MAGs_simple %>% 
+  filter(KO == "K00958" & present == 1) %>% 
+  select(genome) %>% 
+  distinct()
+#24 genomes
+
+# Filter the dataframe to get the genomes that have "K00394" and present equals 1
+k00394_genomes <- auto_MAGs_simple %>% 
+  filter(KO == "K00394" & present == 1) %>% 
+  select(genome) %>% 
+  distinct()
+#60 genomes
+# Get the unique genomes that have "K00958" but not "K00394"
+unique_genomes <- setdiff(k00958_genomes$genome, k00394_genomes$genome)
+#41 genomes
+```
+
+```{r}
+phylum_plot <- ggplot(
+  sulfite_data,
+  aes(
+    x = KO,
+    y = genome,
+    fill = module,
+    alpha = present,
+    width = 1,
+    height = 1
+  )
+) +
+  geom_tile(colour = "white", linewidth = 0.2) +
+  facet_grid(
+    rows = vars(label),
+    cols = vars(header),
+    scales = "free",
+    space = "free_x",
+    labeller = label_wrap_gen(width = 10)
+  ) +
+  scale_alpha_identity(guide = "none") +
+  labs(
+    x = "KO Number",
+    y = "Putative Autotrophic MAGs"
+  ) +
+  theme_bw(base_size = 24) +
+  theme(
+    panel.grid = element_blank(),
+
+    axis.text.x = element_text(
+      angle = 90,
+      vjust = 0.5,
+      hjust = 1,
+      size = 24
+    ),
+    axis.text.y = element_text(
+      size = 18
+    ),
+
+    axis.title.x = element_text(
+      size = 34,
+      face = "bold",
+      margin = margin(t = 15)
+    ),
+    axis.title.y = element_text(
+      size = 34,
+      face = "bold",
+      margin = margin(r = 15)
+    ),
+
+    axis.ticks.x = element_blank(),
+    axis.ticks.y = element_blank(),
+
+    strip.background = element_rect(
+      fill = "white",
+      colour = "black",
+      linewidth = 0.5
+    ),
+    strip.text = element_text(
+      size = 28,
+      face = "bold"
+    ),
+    strip.text.y.left = element_text(
+      angle = 0,
+      size = 28,
+      face = "bold"
+    ),
+
+    legend.position = "bottom",
+    legend.title = element_text(
+      size = 24,
+      face = "bold"
+    ),
+    legend.text = element_text(
+      size = 22
+    ),
+
+    panel.spacing = unit(0.8, "lines")
+  ) +
+  guides(
+    shape = guide_legend(
+      override.aes = list(size = 4)
+    ),
+    color = guide_legend(
+      override.aes = list(size = 4)
+    )
+  )
+
+ggsave(
+  paste0(rootdir,
+         "refined_analysis/refined_figures/06152026/refined_sulfite_06152026.pdf"),
+  plot = phylum_plot,
+  width = 26,
+  height = 30,
+  units = "in"
+)
+```
+

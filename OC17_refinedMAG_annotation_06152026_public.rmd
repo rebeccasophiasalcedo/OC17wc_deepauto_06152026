@@ -1,0 +1,701 @@
+---
+title: "OC17_MAGs_refined_annotation"
+output: html_document
+date: "2024-06-04"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Load Libraries
+```{r message=FALSE, warning=FALSE}
+library(data.table)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(purrr)
+library(ggplot2)
+library(patchwork)
+library(ggthemes)
+library(RColorBrewer)
+library(ggh4x)
+```
+
+#Define Directories, Rename Bins
+```{r}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/"
+oldgenomedir = paste(rootdir, "refined_analysis/refined_bins/", sep = "")
+seqdir = "/scratch/users/rsalcedo/OC17wc_deepauto/sequences/"
+```
+
+```{R}
+bin_list = gsub("_contigs.fa", "", list.files(path = oldgenomedir))
+head(bin_list)
+#rename to match
+
+site_map <- c(
+  "500"  = "OC2",
+  "3000" = "OC3",
+  "3500" = "OC4",
+  "4000" = "OC5",
+  "4500" = "OC6"
+)
+
+# Extract pieces and rename
+renamed_binlist <- sapply(bin_list, function(x) {
+  
+  # Extract site, depth, and MAG number
+  parts <- sub(
+    "R([0-9]+)m([0-9]+)m\\.([0-9]+)",
+    "\\1_\\2_\\3",
+    x
+  )
+  
+  pieces <- strsplit(parts, "_")[[1]]
+  
+  site  <- site_map[pieces[1]]
+  depth <- pieces[2]
+  mag   <- pieces[3]
+  
+  paste0(site, "_", depth, "m_MAG_", mag, ".fa")
+})
+
+renamed_binlist
+```
+
+```{r make new directory using jaffe refined bins}
+# Directories
+source_dir <- "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/jaffe_refined_genomes"
+target_dir <- "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/06152026_refined_genomes"
+
+if (!dir.exists(target_dir)) {
+  dir.create(target_dir, recursive = TRUE)
+}
+
+# Full paths
+source_files <- file.path(source_dir, renamed_binlist)
+target_files <- file.path(target_dir, renamed_binlist)
+
+# Check which files exist
+missing_files <- renamed_binlist[!file.exists(source_files)]
+
+if (length(missing_files) > 0) {
+  warning(
+    paste(
+      "These files were not found:",
+      paste(missing_files, collapse = ", ")
+    )
+  )
+}
+
+# Copy existing files
+file.copy(
+  from = source_files[file.exists(source_files)],
+  to = target_files[file.exists(source_files)],
+  overwrite = TRUE
+)
+
+# Report result
+cat(
+  "Copied",
+  sum(file.exists(source_files)),
+  "of",
+  length(renamed_binlist),
+  "files into",
+  target_dir,
+  "\n"
+)
+```
+
+```{r redefine genome directories & save binlist}
+genomedir <- "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/refined_analysis/06152026_refined_genomes/"
+renamed_binlist = list.files(genomedir)
+#writeLines(renamed_binlist, paste0(rootdir, "/refined_binlist.txt"))
+renamed_binlist = as.character(readLines(paste0(rootdir, "/refined_binlist.txt")))
+```
+
+#CheckM
+```{r checkM lineage}
+#make sure to activate base_metagenomics conda environment
+sink(paste(rootdir, "sh_scripts/refined_checkM.sh", sep = ""))
+
+cat("sbatch -J RcheckM -c 32 --mem-per-cpu 16G -p serc -t 160:00:00 --wrap 'checkm lineage_wf -t 32 --pplacer_threads 32 -x fa --tab_table ", genomedir, " ", rootdir, "refined_checkM/'", "\n", sep = "")
+
+sink()
+
+file.show(paste(rootdir, "sh_scripts/refined_checkM.sh", sep = ""))
+```
+
+```{r checkM qa}
+sink(paste(rootdir, "sh_scripts/refined_checkM_qa.sh", sep = ""))
+cat("sbatch -J Rqa -c 20 --mem-per-cpu 8G -p serc -t 160:00:00 --wrap 'checkm qa -t 20 -o 2 -f ", rootdir, "refined_checkM/refined_output_table.txt --tab_table ", rootdir, "refined_checkM/lineage.ms ", rootdir, "refined_checkM/'", "\n", sep = "")
+
+sink()
+
+file.show(paste(rootdir, "sh_scripts/refined_checkM_qa.sh", sep = ""))
+```
+
+```{r parsing checkM}
+checkm = read_tsv("/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/refined_analysis/refined_checkM/refined_output_table.txt")
+
+checkm_mini = checkm %>% select(c("Bin Id", "Completeness", "Contamination"))
+
+colnames(checkm_mini) = c("genome", "completeness", "contamination")
+
+#write.csv(checkm_mini, paste0(rootdir, "refined_analysis/refined_checkM/refined_checkM_06152026.csv"), row.names = FALSE)
+```
+
+#Annotate Genomes
+```{r prodigal command}
+sink(paste(rootdir, "/sh_scripts/refined_prodigal.sh", sep = ""))
+for (i in renamed_binlist) {
+  cat("sbatch -J ", i, " -c 20 --mem-per-cpu 8G -p serc -t 160:00:00 --wrap 'prodigal -i ", genomedir, i, " -d ", rootdir, "refined_analysis/refined_prodigal/fna/", i, "_prodigalORFs.fna -a ", rootdir, "refined_analysis/refined_prodigal/faa/", i, "_prodigalORFs.faa -o ", rootdir, "refined_analysis/refined_prodigal/log/", i, "_prodigal.log'\n", sep = "")
+  }
+sink()
+
+file.show(paste(rootdir, "sh_scripts/refined_prodigal.sh", sep = ""))
+```
+
+```{r kofamscan command}
+#remember to activate kofamscan conda environment
+
+kofamscan_path = "/home/groups/dekas/rebecca/kofamscan/kofam_scan-1.3.0/exec_annotation"
+ko_list = "/home/groups/dekas/rebecca/kofamscan/ko_list"
+ko_profiles = "/home/groups/dekas/rebecca/kofamscan/profiles"
+
+sink(paste(rootdir, "sh_scripts/refined_kofamscan.sh", sep = ""))
+cat("#!/bin/bash\n", "#SBATCH --job-name=koscan\n", "#SBATCH -p serc\n", "#SBATCH --time=168:00:00\n", "#SBATCH --ntasks=1\n", "#SBATCH --cpus-per-task=32\n", "#SBATCH --mem-per-cpu=8G\n\n", "for i in $(cat ", paste(rootdir, "refined_binlist.txt", sep = ""), ")\n", "do\n", kofamscan_path, " -o ", rootdir, "refined_analysis/refined_kofamscan/txt/${i}_KEGGIDs.txt -k ",  ko_list, " -p ", ko_profiles, " --cpu 32 --tmp-dir ", rootdir, "tmpdirs/${i}_tmpdir/ ", rootdir, "refined_analysis/refined_prodigal/faa/${i}_prodigalORFs.faa\n", "done\n", sep = "")
+sink()
+
+file.show(paste(rootdir, "sh_scripts/refined_kofamscan.sh", sep = ""))
+```
+
+```{r kofamparse command}
+#remember to activate base_metagenomics conda environment and do ml ruby
+
+kofamparse_path = "/home/groups/dekas/software/kofamparse/kofamparse"
+sink(paste(rootdir, "sh_scripts/refined_kofamparse.sh", sep = ""))
+  cat("#!/bin/bash\n", "#SBATCH --job-name=koparse\n", "#SBATCH -p serc\n", "#SBATCH --time=168:00:00\n", "#SBATCH --ntasks=1\n", "#SBATCH --cpus-per-task=32\n", "#SBATCH --mem-per-cpu=8G\n\n", "for i in $(cat ", paste(rootdir, "refined_binlist.txt", sep = ""), ")\n", "do\n", kofamparse_path, " ", rootdir, "refined_analysis/refined_kofamscan/txt/${i}_KEGGIDs.txt ", rootdir, "refined_analysis/refined_kofamscan/csv/${i}_KEGGIDs.csv\n", "done\n", sep = "")
+sink()
+
+file.show(paste(rootdir, "sh_scripts/refined_kofamparse.sh", sep = ""))
+
+```
+
+```{r kofamscan thresholding}
+KO_thresholds = read_csv(paste(rootdir, "bitscore_thresholds.csv", sep = ""))
+
+#define list of KO's im interested in
+KOs = list("K00194", "K00197", "K00198", "K00855", "K01601", "K01602", "K08691", "K09709", "K14466", "K14467", "K14468", "K14469", "K14470", "K15016", "K15017", "K15023", "K15039", "K15052", "K15230", "K15231", "K15232", "K15233", "K15234", "K18861", "K14138")
+
+for(i in renamed_binlist) {                                           
+  kegg = read_csv(paste(rootdir, "refined_analysis/refined_kofamscan/csv/", i, "_KEGGIDs.csv", sep = ""), col_names = TRUE)
+  kegg$score = as.integer(kegg$score)
+  kegg$threshold = as.integer(kegg$threshold)
+  kegg = rename(kegg, gene = "Gene name") 
+  kegg = rename(kegg, KO = "KO number") 
+  kegg = rename(kegg, evalue = "e-value") 
+  kegg_besthit = kegg %>% 
+    group_by(gene) %>% 
+    slice_max(score)
+  kegg_besthit = subset(kegg_besthit, kegg_besthit$evalue < 1e-6)
+  kegg_besthit = subset(kegg_besthit, kegg_besthit$score >= threshold)
+  
+  auto_kegg = subset(kegg_besthit, (KO %in% KOs))
+  for (x in KOs) {
+    threshold = with(KO_thresholds, new[KO == x])
+    assign(paste("bitscore_", x, sep = ""), threshold)
+    pass <- auto_kegg[which(auto_kegg$KO == x & auto_kegg$score >= threshold), ]
+    assign(paste("bitscore_pass_", x, sep = ""), pass)
+  }
+  auto_filtered <- rbind(bitscore_pass_K00194, bitscore_pass_K00197, bitscore_pass_K00198, bitscore_pass_K00855, bitscore_pass_K01601, bitscore_pass_K01602, bitscore_pass_K08691, bitscore_pass_K09709, bitscore_pass_K14466, bitscore_pass_K14467, bitscore_pass_K14468, bitscore_pass_K14469, bitscore_pass_K14470, bitscore_pass_K15016, bitscore_pass_K15017, bitscore_pass_K15023, bitscore_pass_K15039, bitscore_pass_K15052, bitscore_pass_K15230, bitscore_pass_K15231, bitscore_pass_K15232, bitscore_pass_K15233, bitscore_pass_K15234, bitscore_pass_K18861, bitscore_pass_K14138)
+  auto_filtered  = auto_filtered  %>%
+    mutate(pathway = case_when(
+      endsWith(KO, "00855") ~ "CBB",
+      endsWith(KO, "01601") ~ "CBB",
+      endsWith(KO, "01602") ~ "CBB",
+      endsWith(KO, "15230") ~ "rTCA", 
+      endsWith(KO, "15231") ~ "rTCA",
+      endsWith(KO, "15232") ~ "rTCA",
+      endsWith(KO, "15233") ~ "rTCA",
+      endsWith(KO, "15234") ~ "rTCA",
+      endsWith(KO, "00198") ~ "WL",
+      endsWith(KO, "14138") ~ "WL",
+      endsWith(KO, "00197") ~ "WL",
+      endsWith(KO, "00194") ~ "WL",
+      endsWith(KO, "15023") ~ "WL",
+      endsWith(KO, "14468") ~ "3HP Bicycle",
+      endsWith(KO, "15052") ~ "3HP Bicycle",
+      endsWith(KO, "08691") ~ "3HP Bicycle",
+      endsWith(KO, "14469") ~ "3HP Bicycle",
+      endsWith(KO, "14470") ~ "3HP Bicycle",
+      endsWith(KO, "09709") ~ "3HP Bicycle",
+      endsWith(KO, "15039") ~ "3HP/4HB",
+      endsWith(KO, "14466") ~ "3HP/4HB",
+      endsWith(KO, "15017") ~ "3HP/4HB or DC/4HB",
+      endsWith(KO, "15016") ~ "3HP/4HB or DC/4HB",
+      endsWith(KO, "18861") ~ "3HP/4HB or DC/4HB",
+      endsWith(KO, "14467") ~ "DC/4HB"
+  ))
+  duprows <- rownames(kegg_besthit) %in% rownames(auto_filtered)
+  processed = rbind(auto_filtered, kegg_besthit[!duprows,])
+  write.csv(processed, paste(rootdir, "refined_analysis/refined_kofamscan/csv_processed/", i, "_processed.csv", sep = ""))
+}
+
+```
+
+#gtdbtk
+```{r generate command}
+#download db 
+#wget https://data.gtdb.ecogenomic.org/releases/release207/207.0/auxillary_files/	gtdbtk_r207_v2_data.tar.gz
+#using release version v207
+
+#switch base to base_metagenomics conda env
+sink(paste(rootdir, "/sh_scripts/gtdb-tk.sh", sep = ""))
+
+cat("sbatch -J gtdbtk -c 32 --mem-per-cpu 8G -p serc -t 160:00:00 --wrap 'gtdbtk classify_wf --genome_dir ", genomedir, " --out_dir ", rootdir, "refined_analysis/refined_gtdb/ -x fa --cpus 32 --skip_ani_screen'", "\n", sep = "")
+sink()
+
+file.show(paste(rootdir, "sh_scripts/gtdb-tk.sh", sep = ""))
+
+```
+
+```{r parse gtdb results}
+gtdb_dir = paste0(rootdir, "refined_analysis/refined_gtdb")
+
+archaea=read_tsv(file.path(gtdb_dir, "gtdbtk.ar53.summary.tsv"))
+bacteria=read_tsv(file.path(gtdb_dir, "gtdbtk.bac120.summary.tsv"))
+
+gtdb_combined=bind_rows(archaea, bacteria)
+gtdb_summary = gtdb_combined %>% select(c("user_genome", "classification"))
+colnames(gtdb_summary) = c("genome", "classification")
+write.csv(gtdb_summary, paste0(rootdir, "/refined_analysis/refined_gtdb/gtdb_summary_06152026.csv"), row.names = FALSE)
+```
+
+# Assess metabolic potential of autotrophic MAGs (make table for Fig. 4)
+```{r read in all tables needed}
+DRAM_pathways = read_tsv(paste(rootdir, "DRAM_tables/DRAM_energy_pathways_v5.tsv", sep = ""), col_names = TRUE)
+DRAM_KOs = DRAM_pathways %>% select(gene_id)
+checkM_info = checkm_mini
+gtdb_info = gtdb_summary
+```
+
+read in all the annotations, merge them with DRAM information and save as new df
+```{r message=FALSE, warning=FALSE}
+filenames = list.files(path = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/refined_analysis/refined_kofamscan/csv_processed/")
+setwd("/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/refined_analysis/refined_kofamscan/csv_processed/")
+
+for (f in filenames) {
+
+  sample_name <- sub("_processed\\.csv$", "", basename(f))
+
+  genome <- read_csv(f, col_names = TRUE, show_col_types = FALSE) %>%
+    select(KO) %>%
+    distinct(KO) %>%
+    transmute(
+      gene_id = KO,
+      present = 1
+    )
+
+  names(genome)[names(genome) == "present"] <- sample_name
+
+  genome <- left_join(DRAM_KOs, genome, by = "gene_id")
+
+  assign(
+    paste0("genome_", sample_name),
+    genome
+  )
+}
+```
+
+merge each genomes df's together into one giant matrix of gene presence/absence and clean up
+```{r}
+#get all data frames in list
+df_list = mget(ls(pattern = "genome_O"))
+#clean up the names so its just the bin ID
+names(df_list) <- sub("\\_processed.csv$", "", names(df_list))
+#merge all the dataframes together
+a = do.call("cbind", df_list)
+
+#clean up df by renaming some files and dropping duplicate columns
+a = a %>%
+    dplyr::rename("KO" = "genome_OC2_150m_MAG_100.fa.gene_id")
+ab <- a %>% select(-contains(".gene_id"))
+
+#reorder the KO columns so theyre in the same order for when you do cbind since that doesnt look for matches. had to do it this way since merge wasnt working (gave too many rows)
+DRAM_pathways = DRAM_pathways[order(DRAM_pathways$gene_id,decreasing=TRUE),]
+ab = ab[order(ab$KO,decreasing=TRUE),]
+ab = cbind(ab, DRAM_pathways)
+
+#dropping duplicate rows, renaming column headers, and replacing NAs with zeros
+ab <- ab %>% select(-contains("gene_id"))
+ab[is.na(ab)] <- 0
+colnames(ab) = gsub("[.]R\\d+m\\d+m*[.]\\d+", "", colnames(ab))
+
+colnames(ab)
+```
+
+manipulate presence/absence dataframe above to long form so I can add in the taxonomic identity and subset based on checkM quality metrics
+```{r}
+#now turn ab dataframe into long form so we can add tax and plot as heatmap
+ab_long = ab %>% pivot_longer(cols = starts_with("genome_"), names_to = "genome", values_to = "present")
+#remove the genome_ part so that it matches the data in the drep_tax df that I need to merge it with
+ab_long$genome = sub("genome_", "", ab_long$genome)
+ab_long$genome = sub("^(.*)\\.fa\\.\\1\\.fa$", "\\1", ab_long$genome)
+
+#merge the dataframes
+ab_tax = left_join(ab_long, gtdb_info, by = "genome")
+
+#clean up taxonomy names for plotting
+ab_tax$phylum = sub("\\;c.*", "", ab_tax$classification)
+ab_tax$class = sub("\\;o.*", "", ab_tax$classification)
+
+#add in checkM info
+ab_tax = left_join(ab_tax, checkM_info, by = "genome")
+#drop MAGs with over 5% contamination and under 50% completeness
+ab_tax_505 = filter(ab_tax, ab_tax$completeness >= 50 & ab_tax$contamination <= 5)
+
+#make a list of genomes with one or more
+#start by getting only rows of autotrophy genes
+auto = filter(ab_tax_505, ab_tax_505$header == "carbon fixation")
+#sum that data by genome to find the total carbon fixation genes in each genome
+aa = aggregate(present ~ genome, data=auto, FUN=sum)
+#subset the above df to get a list of genomes that have at least two genes involved in carbon fixation
+auto_sum = filter(aa, aa$present >= 1)
+#now use that list to pull out the mags of interest from the whole dataset
+auto_MAGs = subset(ab_tax_505, (genome %in% auto_sum$genome))
+
+length(unique(auto_MAGs$genome))
+length(unique(ab_tax_505$genome))
+
+write.csv(auto_MAGs, paste(rootdir, "refined_analysis/refined_auto_MAGs_06152026.csv", sep = ""), row.names = FALSE)
+```
+
+re-do gene trees
+update that file with results of gene trees (OC17_refinedMAG_gene_tree_06152026.Rmd)
+```{r}
+auto_MAGs = read.csv(paste(rootdir, "refined_analysis/refined_auto_MAGs_06152026.csv", sep = ""))
+
+auto_MAGs$gene_description <- gsub("\\[EC([0-9])", "[EC:\\1", auto_MAGs$gene_description)
+
+auto_MAGs_distinct <- distinct(auto_MAGs)
+
+colnames(auto_MAGs_distinct)
+```
+
+```{r}
+remove = read.csv(paste0(rootdir, "refined_analysis/gene_trees/06152026_genetree_to_remove.csv"))
+remove$X = NULL
+colnames(remove)
+```
+
+```{r}
+#Add the target 'present' value to the remove dataframe
+remove_mod <- remove %>% 
+  mutate(present = 0)
+
+auto_MAGs_edited <- auto_MAGs_distinct %>%
+  # Left join and create a flag column from the 'remove' df
+  left_join(
+    remove %>% mutate(to_remove = TRUE), 
+    by = c("genome", "KO", "module", "header")
+  ) %>%
+  # If it matched, change present to 0; otherwise keep the original value
+  mutate(present = if_else(!is.na(to_remove), 0, present)) %>%
+  # Drop the temporary flag column
+  select(-to_remove)
+
+nrow(anti_join(auto_MAGs_distinct, auto_MAGs_edited))
+```
+
+```{r}
+write.csv(auto_MAGs_edited, paste0(rootdir, "/refined_analysis/refined_auto_MAGs_edited_06152026.csv"))
+```
+
+```{r}
+auto_MAGs_edited = read.csv(paste0(rootdir, "/refined_analysis/refined_auto_MAGs_edited_06152026.csv"))
+```
+
+Table S6: genome, taxonomy, size, GC, carbon fixation pathway present, completeness, contamination, sample generated from, relative abundance, site, depth
+```{r}
+tableS6 = auto_MAGs_edited
+tableS6 = filter(tableS6, tableS6$present == 1)
+
+CBB <- c("K01602", "K00855", "K01601")
+HP <- c("K14468", "K15052", "K08691", "K14469", "K14470", "K14449", "K09709")
+rTCA = c("K15230", "K15231", "K15232", "K15233", "K15234")
+WL = c("K00198", "K14138", "K00197", "K00194", "K15023")
+HP_HB = c("K15039", "K14466")
+HP_DC_HB = c("K15017", "K15016", "K18861", "K14467")
+
+tableS6$pathway = "X"
+tableS6 <- tableS6 %>%
+  group_by(genome) %>%
+  mutate(pathway = case_when(
+    any(KO %in% CBB) & any(KO %in% HP) ~ "3HP bicycle, CBB",
+    any(KO %in% CBB) ~ "CBB",
+    any(KO %in% HP) ~ "3HP bi-cycle",
+    any(KO %in% rTCA) ~ "rTCA",
+    any(KO %in% WL) ~ "WL",
+    any(KO %in% HP_HB) ~ "3HP/4HB",
+    any(KO %in% HP_DC_HB) ~ "3HP/4HB or DC/4HB",
+    TRUE ~ NA_character_
+  ))
+
+tableS6$KO = NULL
+tableS6$gene_description = NULL
+tableS6$header = NULL
+tableS6$module = NULL
+tableS6$present = NULL
+
+tableS6 = subset(tableS6,!is.na(pathway))
+
+tableS6 = distinct(tableS6, genome, .keep_all = TRUE)
+
+#modify pathway based on taxonomy
+tableS6 <- tableS6 %>%
+  mutate(
+    pathway = case_when(
+      grepl("halobacteriota", phylum, ignore.case = TRUE) & pathway == "3HP/4HB or DC/4HB" ~ "DC/4HB",
+      grepl("thermoproteota|thermoplasmatota|planctomycetota|myxococcota", phylum, ignore.case = TRUE) & pathway == "3HP/4HB or DC/4HB" ~ "3HP/4HB",
+      TRUE ~ pathway
+    )
+  )
+
+tableS6 <- tableS6 %>%
+  separate(
+    col = genome,         
+    into = c("site_generated", "depth_generated"),
+    sep = "_",                    
+    remove = FALSE                
+  )
+
+#salcedo_genomes = tableS6$genome
+#write.csv(salcedo_genomes, paste0(rootdir, "/refined_analysis/refined_tables/salcedo_genomes_06152026.csv"))
+
+#specify if genome was published in alex's or nestor's papers
+#read in table from alex for previously reported 
+prev_reported = read.csv(paste0(rootdir, "refined_analysis/jaffe2026_refined_genome_metadata.csv"))
+nestor_genomes = prev_reported$genome_name[prev_reported$reported_in == "Arandia-Gorostidi et al. 2024"]
+jaffe_genomes = prev_reported$genome_name[prev_reported$reported_in == "Jaffe et al. 2025"]
+
+# Add the previously_reported column
+tableS6 <- tableS6 %>%
+  mutate(previously_reported = case_when(
+    genome %in% jaffe_genomes  ~ "Jaffe et al., 2025",
+    genome %in% nestor_genomes ~ "Arandia-Gorostidi et al. 2024", 
+    TRUE                       ~ "no"
+  ))
+
+#using info made in OC17_refinedMAGs_figure3_06152026.Rmd analysis load in the catabolism MAGs
+catabolism_MAGs = read.csv(paste0(rootdir, "/refined_analysis/refined_tables/catabolism_MAGs_06152026.csv"))
+
+catabolism_MAGs = as.character(catabolism_MAGs$x)
+
+tableS6 <- tableS6 %>%
+  mutate(catabolism_found = ifelse(genome %in% catabolism_MAGs, "TRUE", "FALSE"))
+
+#add in genome length from coverM
+coverm_raw = read.csv(paste0(rootdir, "refined_analysis/merged_coverM/refined_coverM_all_06152026.csv"))
+
+coverm_mini = distinct(coverm_raw, genome, .keep_all = TRUE) %>% select(c("genome", "Length"))
+tableS6 = merge(tableS6, coverm_mini, by = "genome")
+
+tableS6$phylum = sub("\\;c.*", "", tableS6$classification)
+tableS6$class = sub("\\;o.*", "", tableS6$classification)
+tableS6$kingdom = sub("\\;p.*", "", tableS6$classification)
+tableS6$phylum = sub(".*p__", "", tableS6$phylum)
+tableS6$class = sub(".*c__", "", tableS6$class)
+tableS6$kingdom = sub(".*d__", "", tableS6$kingdom)
+tableS6 = tableS6 %>% mutate(kingdom = ifelse(kingdom == "Bacteria", "B", kingdom))
+tableS6 = tableS6 %>% mutate(kingdom = ifelse(kingdom == "Archaea", "A", kingdom))
+tableS6 = tableS6 %>% mutate(phylum = ifelse(class == "Gammaproteobacteria", "Gammaproteobacteria", phylum))
+tableS6 = tableS6 %>% mutate(phylum = ifelse(class == "Alphaproteobacteria", "Alphaproteobacteria", phylum))
+
+tableS6$label = paste(tableS6$kingdom, tableS6$phylum, sep = "_")
+
+tableS6$kingdom = NULL
+tableS6$class = NULL
+tableS6$phylum = NULL
+tableS6$X = NULL
+
+write.csv(tableS6, paste(rootdir, "refined_analysis/refined_tables/refined_tableS6_06152026.csv", sep = ""), row.names = FALSE)
+```
+
+Table S10: genome, KO, KO description, larger metabolic function, site, depth
+```{r}
+#read in updated auto_MAGs after manual refinement of catabolic genes using trees (to become tableS10)
+auto_MAGs = read_csv(paste(rootdir, "refined_analysis//refined_auto_MAGs_edited_06152026.csv", sep = ""))
+
+tableS10 = auto_MAGs
+tableS10 = filter(tableS10, tableS10$present >= 1)
+tableS10 = select(tableS10, "genome", "KO", "gene_description", "module")
+tableS10 = dplyr::rename(tableS10, KO_description = gene_description)
+tableS10 = dplyr::rename(tableS10, metabolic_function = module)
+tableS10$present = 1
+
+write.csv(tableS10, paste(rootdir, "refined_analysis/refined_tables/refined_tableS10_06152026.csv", sep = ""), row.names = FALSE)
+```
+
+#determine relative abundance of genomes
+map to whole drep set but replace old mags with refined versions before running coverM
+```{r make new coverM genome set directory}
+# Directories
+orig_dir = paste0(rootdir, "/dereplicated_genomes/")
+refined_dir = genomedir
+out_dir = paste0(rootdir, "/coverM_genome_set")
+```
+
+```{r rename unrefined genomes to match naming scheme}
+genome_dir <- "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/dereplicated_genomes"
+
+# Site conversion map
+site_map <- c(
+  "500"  = "OC2",
+  "3000" = "OC3",
+  "3500" = "OC4",
+  "4000" = "OC5",
+  "4500" = "OC6"
+)
+
+# Get fasta files
+files <- list.files(
+  genome_dir,
+  pattern = "\\.fa$",
+  full.names = TRUE
+)
+
+# Convert names
+new_names <- sapply(basename(files), function(x) {
+  
+  # remove .fa
+  base <- sub("\\.fa$", "", x)
+  
+  parts <- sub(
+    "[AR]([0-9]+)m([0-9]+)m\\.([0-9]+)",
+    "\\1_\\2_\\3",
+    base
+  )
+  
+  pieces <- strsplit(parts, "_")[[1]]
+  
+  site  <- site_map[pieces[1]]
+  depth <- pieces[2]
+  mag   <- pieces[3]
+  
+  paste0(site, "_", depth, "m_MAG_", mag, ".fa")
+})
+
+# Preview changes
+rename_table <- data.frame(
+  old = basename(files),
+  new = new_names
+)
+
+print(rename_table)
+
+# actually rename files
+file.rename(
+  from = files,
+  to = file.path(genome_dir, new_names)
+)
+```
+
+```{r create new coverM directory that is drep set + refined genomes}
+dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
+
+orig_files <- list.files(orig_dir, pattern = "\\.fa$", full.names = TRUE)
+refined_files <- list.files(refined_dir, pattern = "\\.fa$", full.names = TRUE)
+
+# generate a match key
+get_key <- function(x) {
+  x <- basename(x)
+  x <- sub("^[AR]", "", x)
+  x <- sub("_contigs", "", x)
+  x <- sub("\\.fa$", "", x)
+  return(x)
+}
+
+#  lookup table for refined files
+refined_keys <- get_key(refined_files)
+refined_lookup <- setNames(refined_files, refined_keys)
+
+for (f in orig_files) {
+
+  key <- get_key(f)
+
+  if (key %in% names(refined_lookup)) {
+
+    refined_file <- refined_lookup[[key]]
+    out_name <- sub("_contigs", "", basename(refined_file))
+
+    file.copy(
+      refined_file,
+      file.path(out_dir, out_name),
+      overwrite = TRUE
+    )
+
+  } else {
+
+    file.copy(
+      f,
+      file.path(out_dir, basename(f)),
+      overwrite = TRUE
+    )
+
+  }
+}
+
+# summary
+n_replaced <- sum(get_key(orig_files) %in% names(refined_lookup))
+
+cat("Original files:", length(orig_files), "\n")
+cat("Refined files:", length(refined_files), "\n")
+cat("Files replaced by refined versions:", n_replaced, "\n")
+cat("Files in output directory:", length(list.files(out_dir)), "\n")
+```
+
+```{r define sample list for trimmed reads}
+sample_list = c("3000m1000m", "3000m150m", "3000m2000m", "3000m3000m", "3000m500m", "3000m50m", "3500m1000m", "3500m150m", "3500m2000m", "3500m3000m", "3500m500m", "3500m50m", "4000m1000m", "4000m150m", "4000m2000m", "4000m3000m", "4000m500m", "4000m50m", "4500m150m", "4500m2000m", "4500m3000m", "4500m4000m", "4500m500m", "4500m50m", "500m150m", "500m500m", "500m50m", "4500m1000m")
+```
+
+```{r coverm command}
+sink(paste(rootdir,"sh_scripts/merged_coverM.sh", sep = ""))
+for (i in sample_list) {
+  cat("sbatch -J ", i, "_coverM -c 20 --mem-per-cpu 8G -p serc -t 160:00:00 --wrap 'coverm genome --coupled ", seqdir, "trimmed_reads/", i, "_R1_trimmed.fastq.gz ", seqdir, "trimmed_reads/", i, "_R2_trimmed.fastq.gz --genome-fasta-directory ",  rootdir, "coverM_genome_set/ -x fa -t 20 --min-read-percent-identity 95 --output-format sparse --min-covered-fraction 0 -m count mean covered_fraction length -o ", rootdir, "refined_analysis/merged_coverM/", i, "_coverM.tsv'\n", sep = "")
+  }
+sink()
+
+file.show(paste(rootdir,"sh_scripts/merged_coverM.sh", sep = ""))
+```
+
+```{r parsing coverM and merging message=FALSE, warning=FALSE}
+for(i in sample_list) {                                           
+  coverM = read_tsv(paste(rootdir, "refined_analysis/merged_coverM/", i, "_coverM.tsv", sep = ""), col_names = TRUE)
+  coverM$Sample = gsub("_R1_trimmed.fastq.gz", "", coverM$Sample)
+  coverM = dplyr::rename(coverM, genome = Genome)
+  coverM$genome = gsub("_contigs", "", coverM$genome)
+  coverM = dplyr::rename(coverM, covered_fraction = "Covered Fraction")
+  assign(paste("coverM_", i, sep = ""), coverM)
+}
+
+
+df_list = mget(ls(pattern = "coverM_"))
+coverM = rbindlist(df_list, use.names = TRUE)
+coverM <- coverM %>%
+  separate(Sample, into = c("site", "depth"), sep = "m")
+
+site_map <- c(
+  "500"  = "OC2",
+  "3000" = "OC3",
+  "3500" = "OC4",
+  "4000" = "OC5",
+  "4500" = "OC6"
+)
+
+coverM <- coverM %>%
+  mutate(site = recode(site, !!!site_map))
+
+write_csv(coverM, paste(rootdir, "refined_analysis/merged_coverM/refined_coverM_all_06152026.csv", sep = ""))
+```

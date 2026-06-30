@@ -1,0 +1,908 @@
+---
+title: "OC17 Gene-wise Analysis"
+output: html_document
+date: "2024-02-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Set up Working environment
+```{r load libraries, message=FALSE, warning=FALSE}
+library(data.table)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(patchwork)
+library(ggthemes)
+library(RColorBrewer)
+library(stringr)
+library(Biostrings)
+library(tidyr)
+library(tools)
+```
+
+```{r define working directories and sample list}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/gene_based/"
+seqdir = "/scratch/users/rsalcedo/OC17wc_deepauto/sequences/"
+sample_list = c("3000m1000m", "3000m150m", "3000m2000m", "3000m3000m", "3000m500m", "3000m50m", "3500m1000m", "3500m150m", "3500m2000m", "3500m3000m", "3500m500m", "3500m50m", "4000m1000m", "4000m150m", "4000m2000m", "4000m3000m", "4000m500m", "4000m50m", "4500m150m", "4500m2000m", "4500m3000m", "4500m4000m", "4500m500m", "4500m50m", "500m150m", "500m500m", "500m50m", "4500m1000m")
+```
+
+#annotate assemblies
+```{r genearte prodigal command}
+#remember to activate base_metagenomics conda environment
+
+sink("prodigal.sh")
+for (i in sample_list) {
+  cat("sbatch -J ", i, "_prod -c 20 --mem-per-cpu 8G -p serc -t 160:00:00 --wrap 'prodigal -i ", seqdir, "/assemblies/", i, "_contigs_min1000.fa -d ", rootdir, "prodigal/fna/", i, "_prodigalORFs.fna -a ", rootdir, "prodigal/faa/", i, "_prodigalORFs.faa -o ", rootdir, "prodigal/log/", i, "_prodigalORFs.log'\n", sep = "")
+  }
+sink()
+
+file.show("prodigal.sh")
+```
+
+```{r generate kofamscan command}
+#remember to activate kofamscan conda environment
+
+kofamscan_path = "/home/groups/dekas/rebecca/kofamscan/kofam_scan-1.3.0/exec_annotation"
+ko_list = "/home/groups/dekas/rebecca/kofamscan/ko_list"
+ko_profiles = "/home/groups/dekas/rebecca/kofamscan/profiles"
+
+sink(paste0(rootdir, "kofamscan.sh"))
+for (i in sample_list) {
+  cat("sbatch -J ", i, "_kofam -c 20 --mem-per-cpu 8G -p serc -t 160:00:00 --wrap '", kofamscan_path, " -o ", rootdir, "kofamscan/txt/", i, "_KEGGIDs.txt -k ", ko_list, " -p ", ko_profiles, " --cpu 20 --tmp-dir ", rootdir, i, "_tmpdir/ ", seqdir, "/prodigal_annotations/faa/", i, "_contigs_min1000_prodigal_ORFS.faa'\n", sep = "")
+  }
+sink()
+
+file.show(paste0(rootdir, "kofamscan.sh"))
+```
+
+```{r generare kofamparse command}
+#remember to activate base_metagenomics conda environment
+
+kofamparse_path = "/home/groups/dekas/software/kofamparse/kofamparse"
+
+sink(paste0(rootdir, "kofamparse.sh"))
+for (i in sample_list) {
+  cat("sbatch -J ", i, "_parse -c 20 --mem-per-cpu 4G -p serc -t 160:00:00 --wrap '", kofamparse_path, " ", rootdir, "kofamscan/txt/", i, "_KEGGIDs.txt ", rootdir, "kofamscan/csv/", i, "_KEGGIDs.csv'\n", sep = "")
+  }
+sink()
+
+file.show(paste0(rootdir, "kofamparse.sh"))
+```
+
+```{r bitscore plots, message=FALSE, warning=FALSE}
+#make bitscore plots for each site to see which thresholds make the most sense for each gene
+
+kegg_raw = list.files(path = paste0(rootdir, "kofamscan/csv/"))
+
+#define list of CAT KO's im interested in
+KOs = list("K00194", "K00197", "K00198", "K00855", "K01601", "K01602", "K03553", "K08691", "K09709", "K14466", "K14467", "K14468", "K14469", "K14470", "K15016", "K15017", "K15023", "K15039", "K15052", "K15230", "K15231", "K15232", "K15233", "K15234", "K18861", "K14138", "K02982", "K03076", "K01889")
+
+#for loop and setw() commands need to be run together for it to work
+setwd(paste0(rootdir, "kofamscan/csv/"))
+
+for (f in kegg_raw){
+  site = read_csv(f, col_names = TRUE)
+  site$score = as.integer(site$score)
+  site$threshold = as.integer(site$threshold)
+  site = rename(site, gene = `Gene name`) 
+  site = rename(site, KO = `KO number`) 
+  site_besthit = site %>% group_by(gene) %>% slice_max(score)
+  site_besthit = subset(site_besthit, (`e-value` < 1e-6))
+  file_name = paste("../csv_processed/besthit", f, sep = "_")      
+  write.csv(site_besthit, file_name)
+  auto_site_besthit = subset(site_besthit, (KO %in% KOs))
+  score = auto_site_besthit %>% arrange(desc(score))
+  score = score %>% arrange(KO)
+  figure_name = paste("../figures/bitscore", f, ".pdf", sep = "_") 
+  hline <- data.frame(KO = unique(score$KO), Z = unique(score$threshold))
+  plot = ggplot(data = score, aes(x=reorder(gene, -score), y = score)) + geom_point() + theme(axis.text.x = element_blank()) + xlab("Gene") + ylab("Bit Score") + facet_wrap(~KO, ncol = 1, nrow = 25, scales = "free_x") + geom_abline(data = hline, aes(intercept = Z*0.8, slope = 0)) + ggtitle("80% default threshold")
+  ggsave(figure_name, plot = plot, width = 11, height = 34, units = "in")
+}
+```
+
+# Mapping
+
+```{r rename assemblies}
+dir <- paste0(seqdir, "/assemblies")
+
+files <- list.files(
+  path = dir,
+  pattern = "^OC1703_.*\\.contigs\\.fa$",
+  full.names = FALSE
+)
+
+new_names <- sub(
+  "^OC1703_([0-9]+m)_([0-9]+m)_sens_min1000\\.contigs\\.fa$",
+  "\\1\\2_contigs_min1000.fa",
+  files
+)
+
+file.rename(
+  from = file.path(dir, files),
+  to   = file.path(dir, new_names)
+)
+```
+
+```{r build bowtie indexes}
+#activate base_metagenomics conda environment
+
+sink(paste0(rootdir,"/sh_scripts/bowtie_build.sh"))
+for (i in sample_list) {
+  cat("sbatch -J ", i, "_index -c 4 --mem-per-cpu 8G -p serc -t 160:00:00 --wrap 'bowtie2-build ", seqdir, "assemblies/", i, "_contigs_min1000.fa ", rootdir, "bowtie/indexes/", i, "_contigs --threads 4'\n", sep = "")
+  }
+sink()
+
+file.show(paste0(rootdir,"sh_scripts/bowtie_build.sh"))
+```
+
+```{r map with bowtie}
+sink(paste0(rootdir,"/sh_scripts/bowtie_map.sh"))
+for (i in sample_list) {
+  cat("sbatch -J ", i, "_map -c 16 --mem-per-cpu 8G -p serc -t 160:00:00 --wrap 'bowtie2 -x ", rootdir, "bowtie/indexes/", i, "_contigs -1 ", seqdir, "trimmed_reads/", i, "_R1_trimmed.fastq.gz -2 ", seqdir, "trimmed_reads/", i, "_R2_trimmed.fastq.gz -S ", rootdir, "bowtie/bams/", i, "_reads_to_contigs.sam --no-unal -p 16'\n", sep = "")
+  }
+sink()
+
+file.show(paste0(rootdir,"/sh_scripts/bowtie_map.sh"))
+```
+
+```{r sort with samtools}
+sink(paste0(rootdir,"sh_scripts/bowtie_sort.sh"))
+for (i in sample_list) {
+  cat("sbatch -J ", i, "_sort -c 8 --mem-per-cpu 8G -p serc -t 160:00:00 --wrap 'samtools sort ", rootdir, "bowtie/bams/", i, "_reads_to_contigs.sam -@ 8 -o ", rootdir, "bowtie/bams/", i, "_reads_to_contigs_sorted.bam'\n", sep = "")
+  }
+sink()
+
+file.show(paste0(rootdir,"sh_scripts/bowtie_sort.sh"))
+```
+
+```{r index with samtools}
+sink(paste0(rootdir,"sh_scripts/bowtie_index.sh"))
+for (i in sample_list) {
+  cat("sbatch -J ", i, "_index -c 8 --mem-per-cpu 8G -p serc -t 160:00:00 --wrap 'samtools index ", rootdir, "bowtie/bams/", i, "_reads_to_contigs_sorted.bam -@ 8'\n", sep = "")
+  }
+sink()
+
+file.show(paste0(rootdir,"sh_scripts/bowtie_index.sh"))
+```
+
+```{r edit prodigal call names to remove gdrive copy}
+dir = paste0(rootdir, "/prodigal_calls/fna")
+
+files = list.files(
+  path = dir,
+  pattern = "^Copy of ",
+  full.names = FALSE
+)
+
+new_names = sub("^Copy of ", "", files)
+
+data.frame(old = files, new = new_names)  # preview
+
+file.rename(
+  from = file.path(dir, files),
+  to   = file.path(dir, new_names)
+)
+```
+
+
+# InStrain
+```{r generate instrain command}
+#activate inStrain conda environment and ml python/3.6
+
+sink(paste0(rootdir,"sh_scripts/inStrain.sh"))
+for (i in sample_list) {
+  cat("sbatch -J ", i, "_instrain -c 32 --mem-per-cpu 16G -p serc -t 160:00:00 --wrap 'inStrain profile ", rootdir, "bowtie/bams/", i, "_reads_to_contigs_sorted.bam ", seqdir, "assemblies/", i, "_contigs_min1000.fa -o ", rootdir, "inStrain/", i, "_inStrain/ -g ", rootdir, "prodigal_calls/fna/", i, "_contigs_min1000_prodigal_ORFS.fna -p 32 --skip_mm_profiling --skip_plot_generation -c 1 --pairing_filter all_reads'\n", sep = "")
+  }
+sink()
+
+file.show(paste0(rootdir,"sh_scripts/inStrain.sh"))
+```
+
+```{r move instrain gene_info tsvs}
+#for gzipped ones
+sink(paste0(rootdir,"geneinfo_cp_gzip.sh"))
+
+for(i in sample_list) {
+  cat("cp ", rootdir, "inStrain/", i, "_inStrain/output/", i, "_inStrain_gene_info.tsv.gz ", rootdir, "inStrain/gene_info/","\n", sep = "")
+}
+sink()
+
+file.show(paste0(rootdir,"geneinfo_cp_gzip.sh"))
+```
+
+```{r move instrain gene_info tsvs}
+#for non gzipped ones
+sink(paste0(rootdir,"geneinfo_cp.sh"))
+for(i in sample_list) {
+  cat("cp ", rootdir, "inStrain/", i, "_inStrain/output/", i, "_inStrain_gene_info.tsv ", rootdir, "inStrain/gene_info/","\n", sep = "")
+}
+sink()
+
+file.show(paste0(rootdir,"geneinfo_cp.sh"))
+
+```
+
+# Manual Thresholding 
+```{r read in thresholds, message=FALSE, warning=FALSE}
+min_gene_lengths = read_csv(paste(rootdir, "CAT_gene_lengths.csv", sep = ""))
+KO_thresholds = read_csv(paste(rootdir,"bitscore_thresholds.csv", sep = ""))
+
+#define list of KO's im interested in
+KOs = list("K00194", "K00197", "K00198", "K00855", "K01601", "K01602", "K03553", "K08691", "K09709", "K14466", "K14467", "K14468", "K14469", "K14470", "K15016", "K15017", "K15023", "K15039", "K15052", "K15230", "K15231", "K15232", "K15233", "K15234", "K18861", "K14138", "K02982", "K03076", "K01889")
+
+```
+
+```{r message=FALSE, warning=FALSE}
+#read in information about eukaryotic rubisco sequences and remove
+#generated by alex jaffe using contig based taxonomy
+euk_scaf_df = read.csv(paste0(rootdir, "/revision_eukaryotic_scaffolds_1000bp.csv"))
+```
+
+```{r message=FALSE, warning=FALSE}
+for(i in sample_list) {                                           
+  inStrain = read_tsv(paste(rootdir, 'inStrain/gene_info/', i, "_inStrain_gene_info.tsv", sep = ""))
+  kegg = read_csv(paste(rootdir, 'kofamscan_csv/besthit_', i, "_KEGGIDs.csv", sep = ""), col_names = TRUE)
+  kegg_cov = merge(kegg, inStrain, by = "gene")
+  file_name = paste(rootdir, "R_output/", i, "_gene_coverage.csv", sep = "")      
+  write.csv(kegg_cov, file_name)
+  
+  print("finished reading in files")
+  
+  auto_kegg_cov = subset(kegg_cov, (KO %in% KOs))
+  for (x in KOs) {
+    min_length = (with(min_gene_lengths, mean_nt_length[KO == x]))*0.70
+    assign(paste("min_", x, sep = ""), min_length)
+    pass <- auto_kegg_cov[which(auto_kegg_cov$KO == x & auto_kegg_cov$gene_length >= min_length ), ]
+    assign(paste("length_pass_", x, sep = ""), pass)
+  }
+  auto_min_length <- rbind(length_pass_K00194, length_pass_K00197, length_pass_K00198, length_pass_K00855, length_pass_K01601, length_pass_K01602, length_pass_K03553, length_pass_K08691, length_pass_K09709, length_pass_K14466, length_pass_K14467, length_pass_K14468, length_pass_K14469, length_pass_K14470, length_pass_K15016, length_pass_K15017, length_pass_K15023, length_pass_K15039, length_pass_K15052, length_pass_K15230, length_pass_K15231, length_pass_K15232, length_pass_K15233, length_pass_K15234, length_pass_K18861, length_pass_K14138, length_pass_K02982, length_pass_K03076, length_pass_K01889)
+  
+  for (x in KOs) {
+  threshold = with(KO_thresholds, new[KO == x])
+  assign(paste("bitscore_", x, sep = ""), threshold)
+  pass <- auto_min_length[which(auto_min_length$KO == x & auto_min_length$score >= threshold), ]
+  assign(paste("bitscore_pass_", x, sep = ""), pass)
+  }
+  
+  auto_filtered <- rbind(bitscore_pass_K00194, bitscore_pass_K00197, bitscore_pass_K00198, bitscore_pass_K00855, bitscore_pass_K01601, bitscore_pass_K01602, bitscore_pass_K03553, bitscore_pass_K08691, bitscore_pass_K09709, bitscore_pass_K14466, bitscore_pass_K14467, bitscore_pass_K14468, bitscore_pass_K14469, bitscore_pass_K14470, bitscore_pass_K15016, bitscore_pass_K15017, bitscore_pass_K15023, bitscore_pass_K15039, bitscore_pass_K15052, bitscore_pass_K15230, bitscore_pass_K15231, bitscore_pass_K15232, bitscore_pass_K15233, bitscore_pass_K15234, bitscore_pass_K18861, bitscore_pass_K14138, bitscore_pass_K02982, bitscore_pass_K03076, bitscore_pass_K01889)
+  
+  print("finished quality filtering")
+  
+    # Remove rows where scaffold is in euk_scaf_df
+  auto_filtered <- auto_filtered[!auto_filtered$scaffold %in% euk_scaf_df$scaffold, ]
+ 
+  print("eukaryotic sequences removed")
+  
+  auto_filtered  = auto_filtered  %>%
+  mutate(pathway = case_when(
+    endsWith(KO, "00855") ~ "CBB",
+    endsWith(KO, "01601") ~ "CBB",
+    endsWith(KO, "01602") ~ "CBB",
+    endsWith(KO, "15230") ~ "rTCA", 
+    endsWith(KO, "15231") ~ "rTCA",
+    endsWith(KO, "15232") ~ "rTCA",
+    endsWith(KO, "15233") ~ "rTCA",
+    endsWith(KO, "15234") ~ "rTCA",
+    endsWith(KO, "00198") ~ "WL",
+    endsWith(KO, "14138") ~ "WL",
+    endsWith(KO, "00197") ~ "WL",
+    endsWith(KO, "00194") ~ "WL",
+    endsWith(KO, "15023") ~ "WL",
+    endsWith(KO, "14468") ~ "3HP Bicycle",
+    endsWith(KO, "15052") ~ "3HP Bicycle",
+    endsWith(KO, "08691") ~ "3HP Bicycle",
+    endsWith(KO, "14469") ~ "3HP Bicycle",
+    endsWith(KO, "14470") ~ "3HP Bicycle",
+    endsWith(KO, "09709") ~ "3HP Bicycle",
+    endsWith(KO, "15039") ~ "3HP/4HB",
+    endsWith(KO, "14466") ~ "3HP/4HB",
+    endsWith(KO, "15017") ~ "3HP/4HB or DC/4HB",
+    endsWith(KO, "15016") ~ "3HP/4HB or DC/4HB",
+    endsWith(KO, "18861") ~ "3HP/4HB or DC/4HB",
+    endsWith(KO, "14467") ~ "DC/4HB",
+    endsWith(KO, "03553") ~ "single copy",
+    endsWith(KO, "02982") ~ "single copy",
+    endsWith(KO, "03076") ~ "single copy",
+    endsWith(KO, "01889") ~ "single copy",
+  ))
+  
+  auto_filtered$`Above threshold` = NULL
+  auto_filtered$...1 = NULL
+  auto_filtered$start = NULL
+  auto_filtered$end = NULL
+  auto_filtered$direction = NULL
+  auto_filtered$threshold = NULL
+  auto_filtered$nucl_diversity = NULL
+  auto_filtered$partial = NULL
+  auto_filtered$dNdS_substitutions = NULL
+  auto_filtered$pNpS_variants = NULL
+  auto_filtered$SNV_count = NULL
+  auto_filtered$SNV_S_count = NULL
+  auto_filtered$SNV_N_count = NULL
+  auto_filtered$SNS_count = NULL
+  auto_filtered$SNS_S_count = NULL
+  auto_filtered$SNS_N_count = NULL
+  auto_filtered$divergent_site_count = NULL
+  site = sapply(strsplit(i,"m"), `[`, 1)
+  depth = sapply(strsplit(i,"m"), `[`, 2)
+  auto_filtered$site = site
+  auto_filtered$depth = depth
+  auto_file_name = paste(rootdir, "R_output/gene_coverage/", i, "_autogene_coverage.csv", sep = "")      
+  write_csv(auto_filtered, auto_file_name)
+  
+  print("indiivdual gene coverage file saved")
+  
+  auto_filtered_counts = auto_filtered %>% count(auto_filtered$KO)
+  colnames(auto_filtered_counts)[1] <- "KO"
+  tot_cov_by_KO = auto_filtered %>% group_by(auto_filtered$KO) %>% summarise_at(vars(coverage), funs(sum, min, max))
+  colnames(tot_cov_by_KO)[1] <- "KO"
+  tot_cov_by_KO = merge(auto_filtered_counts, tot_cov_by_KO, by = "KO")
+  colnames(tot_cov_by_KO)[2] <- "gene_count"
+
+    for (x in KOs) {
+    ifelse(tot_cov_by_KO$KO == x, pass, tot_cov_by_KO[nrow(tot_cov_by_KO) + 1,] <- c(x, 0, 0, 0, 0))
+  }
+  
+  tot_cov_by_KO = tot_cov_by_KO[order(tot_cov_by_KO[,'KO'],tot_cov_by_KO[,'gene_count'], decreasing = TRUE),]
+  tot_cov_by_KO = tot_cov_by_KO[!duplicated(tot_cov_by_KO$KO),]
+  tot_cov_by_KO = tot_cov_by_KO %>%
+    mutate(pathway = case_when(
+      endsWith(KO, "00855") ~ "CBB",
+      endsWith(KO, "01601") ~ "CBB",
+      endsWith(KO, "01602") ~ "CBB",
+      endsWith(KO, "15230") ~ "rTCA", 
+      endsWith(KO, "15231") ~ "rTCA",
+      endsWith(KO, "15232") ~ "rTCA",
+      endsWith(KO, "15233") ~ "rTCA",
+      endsWith(KO, "15234") ~ "rTCA",
+      endsWith(KO, "00198") ~ "WL",
+      endsWith(KO, "14138") ~ "WL",
+      endsWith(KO, "00197") ~ "WL",
+      endsWith(KO, "00194") ~ "WL",
+      endsWith(KO, "15023") ~ "WL",
+      endsWith(KO, "14468") ~ "3HP Bicycle",
+      endsWith(KO, "15052") ~ "3HP Bicycle",
+      endsWith(KO, "08691") ~ "3HP Bicycle",
+      endsWith(KO, "14469") ~ "3HP Bicycle",
+      endsWith(KO, "14470") ~ "3HP Bicycle",
+      endsWith(KO, "09709") ~ "3HP Bicycle",
+      endsWith(KO, "15039") ~ "3HP/4HB",
+      endsWith(KO, "14466") ~ "3HP/4HB",
+      endsWith(KO, "15017") ~ "3HP/4HB or DC/4HB",
+      endsWith(KO, "15016") ~ "3HP/4HB or DC/4HB",
+      endsWith(KO, "18861") ~ "3HP/4HB or DC/4HB",
+      endsWith(KO, "14467") ~ "DC/4HB",
+      endsWith(KO, "03553") ~ "single copy",
+      endsWith(KO, "02982") ~ "single copy",
+      endsWith(KO, "03076") ~ "single copy",
+      endsWith(KO, "01889") ~ "single copy",
+    ))
+  
+  tot_cov_by_KO$sum = as.numeric(tot_cov_by_KO$sum)
+  KO_file_name = paste(rootdir, "R_output/KO_coverage/", i, "_autoKO_coverage.csv", sep = "")      
+  write_csv(tot_cov_by_KO, KO_file_name)
+  
+  print("autotrophic KO coverage file saved")
+  
+  tot_cov_by_KO_no_cbbS = subset(tot_cov_by_KO, tot_cov_by_KO$KO!="K01602")
+  tot_cov_by_pathway = tot_cov_by_KO_no_cbbS %>% group_by(tot_cov_by_KO_no_cbbS$pathway) %>% summarise_at(vars(sum), funs(mean, min, max))
+  colnames(tot_cov_by_pathway)[1] <- "pathway"
+  print("rename successful")
+  singlecopy_meancov = tot_cov_by_pathway$mean[tot_cov_by_pathway$pathway=="single copy"]
+  tot_cov_by_pathway$normalized_cov = tot_cov_by_pathway$mean/singlecopy_meancov
+  tot_cov_by_pathway$metabolism = "chemoautotrophy"
+  tot_cov_by_pathway[8, 6] = "single copy"
+  pathway_file_name = paste(rootdir, "R_output/pathway_coverage/", i, "_autopath_coverage.csv", sep = "")      
+  write_csv(tot_cov_by_pathway, pathway_file_name)
+  print("pathway coverage file created")
+  print("successful loop")
+}
+
+
+```
+
+Supp Table: gene, coverage, contig, length, KO, bitscore, evalue, breadth, associated pathway, site, depth
+```{r}
+list_files = list.files(path = paste(rootdir, 'R_output/gene_coverage/', sep = ""))
+setwd(paste(rootdir, "R_output/gene_coverage/", sep = ""))
+tableS2 = readr::read_csv(list_files, id = "file_name")
+tableS2$file_name = NULL
+tableS2 = filter(tableS2, pathway != "single copy")
+
+write_csv(tableS2, paste(rootdir, "R_output/supptable_genes_06152026.csv", sep = ""))
+
+```
+
+extract scaffold sequences for contig level taxonomy
+```{r}
+tableS2 = read_csv(paste(rootdir, "R_output/supptable_genes_06152026.csv", sep = ""))
+
+cmdir <- function(path) {
+  if (!dir.exists(path)) {
+    dir.create(path, recursive = TRUE)
+  }
+}
+
+sbatch <- function(name, cpus, cmd) {
+  sprintf("sbatch -J %s -p serc -t 160:00:00 -c %d --mem %dG --wrap '%s'", 
+          name, cpus, cpus*8, cmd)
+}
+
+contigtaxdir <- "/scratch/users/rsalcedo/OC17wc_deepauto/gene_based/contig_taxonomy"
+cmdir(file.path(contigtaxdir, "scaffolds"))
+
+extracted <- tableS2
+extracted <- extracted %>%
+  mutate(sample = str_replace(scaffold, ".*_(\\d+m)_(\\d+m)_.*", "\\1\\2"))
+
+
+print(head(extracted))
+
+unique_samples <- unique(extracted$sample)
+
+for (sample in unique_samples) {
+  # Find assembly
+  path <- file.path(seqdir, "assemblies", sprintf("%s_contigs_min1000.fa", sample))
+  print(sprintf("Processing file: %s", path))
+  
+  if (!file.exists(path)) {
+    warning(sprintf("File does not exist: %s", path))
+    next
+  }
+
+  dna_records <- readDNAStringSet(path)
+  names(dna_records) <- sapply(names(dna_records), function(x) str_split(x, " ")[[1]][1])
+  tmp <- as.list(as.character(dna_records))
+  
+  print(sprintf("Scaffolds in assembly for sample %s: %s", sample, paste(names(tmp), collapse = ", ")))
+  
+  sample_data <- extracted %>% filter(sample == sample)
+  
+  print(sprintf("Scaffolds to extract for sample %s: %s", sample, paste(unique(sample_data$scaffold), collapse = ", ")))
+  
+  for (scaffold in unique(sample_data$scaffold)) {
+    scaffold <- trimws(scaffold)  
+    if (scaffold %in% names(tmp)) {
+      writeLines(sprintf(">%s\n%s\n", scaffold, tmp[[scaffold]]), 
+                 file.path(contigtaxdir, "scaffolds", paste0(scaffold, ".fna")))
+    } else {
+      warning(sprintf("Scaffold %s not found in file %s", scaffold, path))
+    }
+  }
+}
+
+```
+
+
+Figure 1: coverage/abundance of autotrophic genes and autotrophic pathways
+read in data
+```{r message=FALSE}
+list_KO_files <- list.files(path = paste(rootdir, "R_output/KO_coverage/", sep = ""))
+list_KO_files
+list_pathway_files <- list.files(path = paste(rootdir, "R_output/pathway_coverage/", sep = ""))
+list_pathway_files
+
+setwd(paste(rootdir, "R_output/pathway_coverage/", sep = ""))
+pathway_df <- readr::read_csv(list_pathway_files, id = "file_name")
+pathway_df
+setwd(paste(rootdir, "R_output/KO_coverage/", sep = ""))
+KO <- readr::read_csv(list_KO_files, id = "file_name")
+KO
+```
+clean up df's
+```{r}
+KO$site_m = KO$file_name
+KO$depth_m = KO$file_name
+KO  = KO  %>%
+  mutate(site_m = case_when(
+    startsWith(file_name, "500m") ~ "500",
+    startsWith(file_name, "3000m") ~ "3000",
+    startsWith(file_name, "3500m") ~ "3500",
+    startsWith(file_name, "4000m") ~ "4000",
+    startsWith(file_name, "4500m") ~ "4500",
+  ))
+KO  = KO  %>%
+  mutate(depth_m = case_when(
+    startsWith(file_name, "500m50m_autoKO_coverage.csv") ~ "50",
+    endsWith(file_name, "3000m50m_autoKO_coverage.csv") ~ "50",
+    endsWith(file_name, "3500m50m_autoKO_coverage.csv") ~ "50",
+    endsWith(file_name, "4000m50m_autoKO_coverage.csv") ~ "50",
+    endsWith(file_name, "4500m50m_autoKO_coverage.csv") ~ "50",
+    endsWith(file_name, "150m_autoKO_coverage.csv") ~ "150",
+    endsWith(file_name, "500m_autoKO_coverage.csv") ~ "500",
+    endsWith(file_name, "1000m_autoKO_coverage.csv") ~ "1000",
+    endsWith(file_name, "2000m_autoKO_coverage.csv") ~ "2000",
+    endsWith(file_name, "3000m_autoKO_coverage.csv") ~ "3000",
+    endsWith(file_name, "4000m_autoKO_coverage.csv") ~ "4000",
+  ))
+KO$file_name = NULL
+
+pathway_df$site_m = pathway_df$file_name
+pathway_df$depth_m = pathway_df$file_name
+pathway_df  = pathway_df  %>%
+  mutate(site_m = case_when(
+    startsWith(file_name, "500m") ~ "500",
+    startsWith(file_name, "3000m") ~ "3000",
+    startsWith(file_name, "3500m") ~ "3500",
+    startsWith(file_name, "4000m") ~ "4000",
+    startsWith(file_name, "4500m") ~ "4500",
+  ))
+
+pathway_df  = pathway_df  %>%
+  mutate(depth_m = case_when(
+    endsWith(file_name, "500m50m_autopath_coverage.csv") ~ "50",
+    endsWith(file_name, "3000m50m_autopath_coverage.csv") ~ "50",
+    endsWith(file_name, "3500m50m_autopath_coverage.csv") ~ "50",
+    endsWith(file_name, "4000m50m_autopath_coverage.csv") ~ "50",
+    endsWith(file_name, "4500m50m_autopath_coverage.csv") ~ "50",
+    endsWith(file_name, "150m_autopath_coverage.csv") ~ "150",
+    endsWith(file_name, "500m_autopath_coverage.csv") ~ "500",
+    endsWith(file_name, "1000m_autopath_coverage.csv") ~ "1000",
+    endsWith(file_name, "2000m_autopath_coverage.csv") ~ "2000",
+    endsWith(file_name, "3000m_autopath_coverage.csv") ~ "3000",
+    endsWith(file_name, "4000m_autopath_coverage.csv") ~ "4000",
+  ))
+pathway_df$file_name = NULL
+
+KO <- KO %>% 
+       dplyr::rename("sum_cov" = "sum")
+KO <- KO %>% 
+       dplyr::rename("min_cov" = "min")
+KO <- KO %>% 
+       dplyr::rename("max_cov" = "max")
+pathway_df <- pathway_df %>% 
+       dplyr::rename("mean_cov" = "mean")
+pathway_df <- pathway_df %>% 
+       dplyr::rename("min_cov" = "min")
+pathway_df <- pathway_df %>% 
+       dplyr::rename("max_cov" = "max")
+
+write.csv(file = paste(rootdir, "R_output/transect_pathwaydf.csv", sep = ""), x= pathway_df)
+write.csv(file = paste(rootdir, "R_output/transect_KOdf.csv", sep = ""), x= KO)
+
+pathway_df = read.csv(paste(rootdir, "R_output/transect_pathwaydf.csv", sep = ""))
+pathway_no_sc = subset(pathway_df, pathway_df$metabolism!="single copy")
+
+```
+
+total relative abundance plot
+```{r}
+totals_norm_cov = pathway_no_sc %>% group_by(site_m, depth_m) %>% summarize(sum(normalized_cov))
+totals_norm_cov <- totals_norm_cov %>% 
+       dplyr::rename("norm_cov" = "sum(normalized_cov)")
+
+totals_norm_cov[-(which(totals_norm_cov$depth_m == 50)),] %>%
+  group_by(site_m) %>%
+  summarise_at(vars(norm_cov), list(name = mean))
+
+totals_norm_cov$site_m = as.character(totals_norm_cov$site_m)
+totals_norm_cov = totals_norm_cov %>% mutate(site_m = ifelse(site_m == "500", "OC2", site_m))
+totals_norm_cov = totals_norm_cov %>% mutate(site_m = ifelse(site_m == "3000", "OC3", site_m))
+totals_norm_cov = totals_norm_cov %>% mutate(site_m = ifelse(site_m == "3500", "OC4", site_m))
+totals_norm_cov = totals_norm_cov %>% mutate(site_m = ifelse(site_m == "4000", "OC5", site_m))
+totals_norm_cov = totals_norm_cov %>% mutate(site_m = ifelse(site_m == "4500", "OC6", site_m))
+
+label = paste(signif(totals_norm_cov$norm_cov, 2)*100,"%")
+
+supp.labs <- c("OC6", "OC5", "OC4", "OC3", "OC2")
+names(supp.labs) <- c("OC6", "OC5", "OC4", "OC3", "OC2")
+
+total_plot = ggplot(data = totals_norm_cov) + 
+  geom_point(aes(y=norm_cov*100, x=depth_m), size = 2.5) + 
+  geom_line(aes(y=norm_cov*100, x=depth_m, group = 1), size = 1) + 
+  theme_light() + 
+  facet_grid(~factor(site_m, levels = c("OC6", "OC5", "OC4", "OC3", "OC2")), labeller = labeller(site_m = supp.labs), switch = "y") + 
+  ggtitle("Percent Relative Abundance of Total Autotrophs") + 
+  ylab("Percentage of microbial community") + 
+  xlab("Depth (m)") + 
+  coord_flip() + 
+  ylim(0,100) +
+  xlim(4500,0) +
+  theme(axis.text.y = element_text(size = 14), strip.text = element_text(size = 16, colour = "black"), strip.background = element_blank(),
+        axis.text.x = element_text(size = 16),
+        axis.title.x = element_text(size = 18),
+        axis.title.y = element_text(size = 18)) +
+  geom_text(aes(y=norm_cov*100, x=depth_m, label=label), nudge_y = 15, size = 6) +
+  theme_bw()
+total_plot
+
+#ggsave(filename = paste(rootdir, "R_output/figures/totals_06152025.pdf", sep = ""), total_plot, width=17, height=9)
+```
+pathway relative abundance plot
+```{r}
+#4500m site
+pathways_4500m = subset(pathway_no_sc, pathway_no_sc$site_m=="4500")
+pathways_4500m  <- pathways_4500m %>% 
+  group_by(depth_m) %>% 
+  mutate(
+    relative = normalized_cov/sum(normalized_cov)
+  ) %>% 
+  ungroup()
+
+depth_totals <- pathways_4500m %>%
+    group_by(depth_m) %>%
+    summarise(normalized_cov = sum(normalized_cov))
+
+pathways_4500m <- add_row(.data = pathways_4500m,
+        depth_totals) %>%
+    arrange(depth_m)
+
+pathways_4500m$pathway[is.na(pathways_4500m$pathway)] <- "total"
+pathways_4500m$site_m[is.na(pathways_4500m$site_m)] <- "4500"
+
+pathways_4500m = subset(pathways_4500m, pathways_4500m$pathway!="DC/4HB")
+pathways_4500m = subset(pathways_4500m, pathways_4500m$pathway!="3HP/4HB")
+
+#4000m site
+pathways_4000m = subset(pathway_no_sc, pathway_no_sc$site_m=="4000")
+pathways_4000m  <- pathways_4000m %>% 
+  group_by(depth_m) %>% 
+  mutate(
+    relative = normalized_cov/sum(normalized_cov)
+  ) %>% 
+  ungroup()
+
+depth_totals <- pathways_4000m %>%
+    group_by(depth_m) %>%
+    summarise(normalized_cov = sum(normalized_cov))
+
+pathways_4000m <- add_row(.data = pathways_4000m,
+        depth_totals) %>%
+    arrange(depth_m)
+
+pathways_4000m$pathway[is.na(pathways_4000m$pathway)] <- "total"
+
+pathways_4000m = subset(pathways_4000m, pathways_4000m$pathway!="DC/4HB")
+pathways_4000m = subset(pathways_4000m, pathways_4000m$pathway!="3HP/4HB")
+pathways_4000m$site_m[is.na(pathways_4000m$site_m)] <- "4000"
+
+#3500m site
+pathways_3500m = subset(pathway_no_sc, pathway_no_sc$site_m=="3500")
+pathways_3500m  <- pathways_3500m %>% 
+  group_by(depth_m) %>% 
+  mutate(
+    relative = normalized_cov/sum(normalized_cov)
+  ) %>% 
+  ungroup()
+
+depth_totals <- pathways_3500m %>%
+    group_by(depth_m) %>%
+    summarise(normalized_cov = sum(normalized_cov))
+
+pathways_3500m <- add_row(.data = pathways_3500m,
+        depth_totals) %>%
+    arrange(depth_m)
+
+pathways_3500m$pathway[is.na(pathways_3500m$pathway)] <- "total"
+pathways_3500m$site_m[is.na(pathways_3500m$site_m)] <- "3500"
+
+pathways_3500m = subset(pathways_3500m, pathways_3500m$pathway!="DC/4HB")
+pathways_3500m = subset(pathways_3500m, pathways_3500m$pathway!="3HP/4HB")
+
+#3000m site
+pathways_3000m = subset(pathway_no_sc, pathway_no_sc$site_m=="3000")
+pathways_3000m  <- pathways_3000m %>% 
+  group_by(depth_m) %>% 
+  mutate(
+    relative = normalized_cov/sum(normalized_cov)
+  ) %>% 
+  ungroup()
+
+depth_totals <- pathways_3000m %>%
+    group_by(depth_m) %>%
+    summarise(normalized_cov = sum(normalized_cov))
+
+pathways_3000m <- add_row(.data = pathways_3000m,
+        depth_totals) %>%
+    arrange(depth_m)
+
+pathways_3000m$pathway[is.na(pathways_3000m$pathway)] <- "total"
+pathways_3000m$site_m[is.na(pathways_3000m$site_m)] <- "3000"
+
+pathways_3000m = subset(pathways_3000m, pathways_3000m$pathway!="DC/4HB")
+pathways_3000m = subset(pathways_3000m, pathways_3000m$pathway!="3HP/4HB")
+
+#500m site
+pathways_500m = subset(pathway_no_sc, pathway_no_sc$site_m=="500")
+pathways_500m  <- pathways_500m %>% 
+  group_by(depth_m) %>% 
+  mutate(
+    relative = normalized_cov/sum(normalized_cov)
+  ) %>% 
+  ungroup()
+
+depth_totals <- pathways_500m %>%
+    group_by(depth_m) %>%
+    summarise(normalized_cov = sum(normalized_cov))
+
+pathways_500m <- add_row(.data = pathways_500m,
+        depth_totals) %>%
+    arrange(depth_m)
+
+pathways_500m$pathway[is.na(pathways_500m$pathway)] <- "total"
+pathways_500m$site_m[is.na(pathways_500m$site_m)] <- "500"
+
+pathways_500m = subset(pathways_500m, pathways_500m$pathway!="DC/4HB")
+pathways_500m = subset(pathways_500m, pathways_500m$pathway!="3HP/4HB")
+
+all_sites = rbind(pathways_3000m, pathways_3500m, pathways_4000m, pathways_4500m, pathways_500m)
+all_sites$X = NULL
+all_sites = all_sites %>% dplyr::rename("relative_auto" = "relative")
+all_sites$percentage = all_sites$normalized_cov*100
+
+write.csv(file = paste(rootdir, "R_output/all_sites.csv", sep = ""), x= all_sites)
+
+all_sites %>% filter(depth_m > 50 & pathway == "total") %>% summarise(avg = mean(percentage))
+```
+
+```{r}
+cbPalette <- c("#CC79A7", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00")
+
+p1=ggplot(data = pathways_4500m) + 
+  geom_point(aes(y=relative*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
+  geom_line(aes(y=relative*100, x=depth_m, colour = pathway, group=pathway), size = 2) + 
+  theme_bw() + 
+  ylab("") + 
+  xlab("Depth (m)") + 
+  coord_flip() + 
+  theme(legend.position = "bottom") + 
+  ylim(0,100) + 
+  xlim(4500,0) + 
+  ggtitle("OC6") + 
+  scale_colour_manual(values=cbPalette)
+
+p2=ggplot(data = pathways_4000m) + 
+  geom_point(aes(y=relative*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
+  geom_line(aes(y=relative*100, x=depth_m, colour = pathway, group=pathway), size = 2) + 
+  theme_bw() + 
+  ylab("") + 
+  xlab("") + 
+  coord_flip() + 
+  theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  ylim(0,100) +
+  xlim(4500,0) + 
+  ggtitle("OC5") + 
+  scale_colour_manual(values=cbPalette)
+
+p3=ggplot(data = pathways_3500m) + 
+  geom_point(aes(y=relative*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
+  geom_line(aes(y=relative*100, x=depth_m, colour = pathway, group=pathway), size = 2) + 
+  theme_bw() + 
+  ylab("") + 
+  xlab("") + 
+  coord_flip() + 
+  theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  ylim(0,100) +
+  xlim(4500,0) + 
+  ggtitle("OC4") + 
+  scale_colour_manual(values=cbPalette)
+
+p4=ggplot(data = pathways_3000m) + 
+  geom_point(aes(y=relative*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
+  geom_line(aes(y=relative*100, x=depth_m, colour = pathway, group=pathway), size = 2) + 
+  theme_bw() + 
+  ylab("") + 
+  xlab("") + 
+  coord_flip() + 
+  theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  ylim(0,100) +
+  xlim(4500,0) + 
+  ggtitle("OC3") + 
+  scale_colour_manual(values=cbPalette)
+
+p5=ggplot(data = pathways_500m) + 
+  geom_point(aes(y=relative*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
+  geom_line(aes(y=relative*100, x=depth_m, colour = pathway, group=pathway), size = 2) + 
+  theme_bw() + 
+  ylab("") + 
+  xlab("") + 
+  coord_flip() + 
+  theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  ylim(0,100) +
+  xlim(4500,0) + 
+  ggtitle("OC2") + 
+  scale_colour_manual(values=cbPalette)
+
+plot = (p1 | p2 | p3 | p4 | p5)/guide_area() + plot_layout(heights = c(6, 1), guides = "collect")
+
+plot_final = wrap_elements(panel = plot) +
+  labs(tag = "Percent Relative Abundance of Autotrophic Pathways", title = "Percent Relative Abundance of Autotrophic Pathways",subtitle = "Relative abundance == mean coverage of all genes within a pathway in a sample/mean coverage of 4 single copy genes") +
+  theme(
+    plot.tag = element_text(size = rel(1)),
+    plot.tag.position = "bottom"
+  )
+
+plot_final
+
+#ggsave(filename = paste(rootdir, "R_output/figures/pathways_06152026.pdf", sep = ""), plot_final, width=17, height=9)
+
+```
+
+```{r}
+cbPalette <- c("#CC79A7", "#E69F00", "#56B4E9", "#009E73", "#000000", "#F0E442")
+
+p1=ggplot(data = pathways_4500m) + 
+  geom_point(aes(y=normalized_cov*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
+  geom_line(aes(y=normalized_cov*100, x=depth_m, colour = pathway, group=pathway), size = 2) + 
+  theme_bw() + 
+  ylab("") + 
+  xlab("Depth (m)") + 
+  coord_flip() + 
+  theme(legend.position = "bottom") +
+  ylim(0,65) +
+  xlim(4500,0) + 
+  ggtitle("OC6") + 
+  scale_colour_manual(values=cbPalette)
+p1
+
+p2=ggplot(data = pathways_4000m) + 
+  geom_point(aes(y=normalized_cov*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
+  geom_line(aes(y=normalized_cov*100, x=depth_m, colour = pathway, group=pathway), size = 2) + 
+  theme_bw() + 
+  ylab("") + 
+  xlab("") + 
+  coord_flip() + 
+  theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  ylim(0,40) +
+  xlim(4500,0) + 
+  ggtitle("OC5") + 
+  scale_colour_manual(values=cbPalette)
+
+p3=ggplot(data = pathways_3500m) + 
+  geom_point(aes(y=normalized_cov*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
+  geom_line(aes(y=normalized_cov*100, x=depth_m, colour = pathway, group=pathway), size = 2) + 
+  theme_bw() + 
+  ylab("") + 
+  xlab("") + 
+  coord_flip() + 
+  theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  ylim(0,30) +
+  xlim(4500,0) + 
+  ggtitle("OC4") + 
+  scale_colour_manual(values=cbPalette)
+
+p4=ggplot(data = pathways_3000m) + 
+  geom_point(aes(y=normalized_cov*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
+  geom_line(aes(y=normalized_cov*100, x=depth_m, colour = pathway, group=pathway), size = 2) + 
+  theme_bw() + 
+  ylab("") + 
+  xlab("") + 
+  coord_flip() + 
+  theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  ylim(0,30) +
+  xlim(4500,0) + 
+  ggtitle("OC3") + 
+  scale_colour_manual(values=cbPalette)
+
+p5=ggplot(data = pathways_500m) + 
+  geom_point(aes(y=normalized_cov*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
+  geom_line(aes(y=normalized_cov*100, x=depth_m, colour = pathway, group=pathway), size = 2) + 
+  theme_bw() + 
+  ylab("") + 
+  xlab("") + 
+  coord_flip() + 
+  theme(legend.position = "bottom", axis.title.y = element_blank(), axis.text.y = element_blank(), axis.ticks.y = element_blank()) +
+  ylim(0,30) +
+  xlim(4500,0) + 
+  ggtitle("OC2") + 
+  scale_colour_manual(values=cbPalette)
+
+
+plot = (p1 | p2 | p3 | p4 | p5)/guide_area() + plot_layout(heights = c(6, 1), guides = "collect")
+
+plot_final = wrap_elements(panel = plot) +
+  labs(tag = "Percent Relative Abundance of Autotrophic Pathways in total community", title = "Percent Relative Abundance of Autotrophic Pathways",subtitle = "Relative abundance == mean coverage of all genes within a pathway in a sample/mean coverage of 4 single copy genes") +
+  theme(
+    plot.tag = element_text(size = rel(1)),
+    plot.tag.position = "bottom"
+  )
+
+plot_final
+
+#ggsave(filename = paste(rootdir, "R_output/figures/pathways_totalcomm_06152026.pdf", sep = ""), plot_final, width=17, height=9)
+```

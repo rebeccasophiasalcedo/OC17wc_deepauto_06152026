@@ -1,0 +1,349 @@
+---
+title: "OC17 MAGs Abundance/Distribution"
+output: html_document
+date: "2024-05-18"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+library(data.table)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(purrr)
+
+library(ggplot2)
+library(ggthemes)
+library(patchwork)
+library(RColorBrewer)
+library(png)
+
+library(VennDiagram)
+library(eulerr)
+```
+
+```{r}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/"
+```
+
+```{r message=FALSE, warning=FALSE}
+coverm = read_csv(paste(rootdir, "refined_analysis/merged_coverM/refined_coverM_all_06152026.csv", sep = ""))
+genome_info = read_csv(paste(rootdir, "refined_analysis/refined_auto_MAGs_edited_06152026.csv", sep = ""))
+
+taxonomy <- genome_info %>%
+  distinct(genome, .keep_all = TRUE) %>%
+  select(genome, classification)
+```
+
+```{r}
+coverm$Sample = paste(coverm$site, coverm$depth, sep = "_")
+coverm_QC = filter(coverm, covered_fraction >= 0.50)
+sample_cov = coverm_QC %>% 
+  group_by(Sample) %>% 
+  summarise(Mean = sum(Mean))
+
+coverm_QC = left_join(coverm_QC, sample_cov, "Sample")
+coverm_QC <- coverm_QC %>% 
+       rename("sample_cov" = "Mean.y")
+coverm_QC <- coverm_QC %>% 
+       rename("genome_cov" = "Mean.x")
+coverm_QC$relative = coverm_QC$genome_cov/coverm_QC$sample_cov
+
+total_data_coverage = sum(unique(coverm_QC$sample_cov))
+coverm_QC$relative_total = coverm_QC$genome_cov/total_data_coverage
+
+length(unique(genome_info$genome))
+
+```
+
+sulfur catabolisms
+```{r}
+sulfur = filter(genome_info, genome_info$header == "Sulfur")
+sulfur_genes = aggregate(present ~ genome, data=sulfur, FUN=sum)
+#subset the above df to get a list of genomes that have at least one gene involved in sulfur catabolism
+sulfur_MAGs = filter(sulfur_genes, sulfur_genes$present >= 1)
+
+#remove those not associated with sulfite oxidation (only have sat)
+k00958_genomes <- genome_info %>% 
+  filter(KO == "K00958" & present == 1) %>% 
+  select(genome) %>% 
+  distinct()
+
+# Filter the dataframe to get the genomes that have "K00394" and present equals 1
+k00394_genomes <- genome_info %>% 
+  filter(KO == "K00394" & present == 1) %>% 
+  select(genome) %>% 
+  distinct()
+
+# Get the unique genomes that have "K00958" but not "K00394"
+nonsulfite_genomes <- setdiff(k00958_genomes$genome, k00394_genomes$genome)
+
+nonsulfite_genomes_df <- data.frame(genome = nonsulfite_genomes)
+
+# Remove rows from df2 where entries in "sample" match entries in "unique_genomes"
+sulfur_MAGs <- sulfur_MAGs %>%
+  anti_join(nonsulfite_genomes_df, by = c("genome" = "genome"))
+
+sulfur_abund = merge(sulfur_MAGs, coverm_QC, by = "genome")
+
+#aggregate by sample
+sulfur_dist = aggregate(relative ~ Sample, data=sulfur_abund, FUN=sum)
+
+```
+
+nitrogen catabolisms
+```{r}
+nitrogen = filter(genome_info, genome_info$header == "Nitrogen")
+#sum that data by genome to find the total nitrogen genes in each genome
+nitrogen_genes = aggregate(present ~ genome, data=nitrogen, FUN=sum)
+#subset the above df to get a list of genomes that have at least one gene involved in nitrogen catabolism
+nitrogen_MAGs = filter(nitrogen_genes, nitrogen_genes$present >= 1)
+
+#remove those not that only have nirK and not amoA (AKA those likely involved in reduction)
+K00368_genomes <- genome_info %>% 
+  filter(KO == "K00368" & present == 1) %>% 
+  select(genome) %>% 
+  distinct()
+
+# Filter the dataframe to get the genomes that have "K10944" and present equals 1
+K10944_genomes <- genome_info %>% 
+  filter(KO == "K10944" & present == 1) %>% 
+  select(genome) %>% 
+  distinct()
+
+# Get the unique genomes that have "K00368" but not "K10944"
+nonN_genomes <- setdiff(K00368_genomes$genome, K10944_genomes$genome)
+
+nonN_genomes_df <- data.frame(genome = nonN_genomes)
+
+# Remove rows from df2 where entries in "sample" match entries in "unique_genomes"
+nitrogen_MAGs <- nitrogen_MAGs %>%
+  anti_join(nonN_genomes_df, by = c("genome" = "genome"))
+
+nitrogen_abund = merge(nitrogen_MAGs, coverm_QC, by = "genome")
+#aggregate by sample
+nitrogen_dist = aggregate(relative ~ Sample, data=nitrogen_abund, FUN=sum)
+
+```
+
+```{r}
+CO = filter(genome_info, genome_info$header == "CO oxidation")
+#sum that data by genome to find the total CO genes in each genome
+CO_genes = aggregate(present ~ genome, data=CO, FUN=sum)
+#subset the above df to get a list of genomes that have at least one gene involved in CO catabolism
+CO_MAGs = filter(CO_genes, CO_genes$present >= 1)
+
+#remove those not that only have K00196 (not cox)
+K00196_genomes <- genome_info %>% 
+  filter(KO == "K00196" & present == 1) %>% 
+  select(genome) %>% 
+  distinct()
+
+# Filter the dataframe to get the genomes that have any of the cox subunits
+cox_genomes <- genome_info %>% 
+  filter((KO == "K03519" | KO == "K03518" | KO == "K03520") & present == 1) %>%
+  select(genome) %>% 
+  distinct()
+
+# Get the unique genomes that have "K00196" but not any cox genes (aka not oxidizers)
+nonCO_genomes <- setdiff(K00196_genomes$genome, cox_genomes$genome)
+
+nonCO_genomes_df <- data.frame(genome = nonCO_genomes)
+
+# Remove rows from df2 where entries in "sample" match entries in "unique_genomes"
+CO_MAGs <- CO_MAGs %>%
+  anti_join(nonCO_genomes_df, by = c("genome" = "genome"))
+
+
+CO_abund = merge(CO_MAGs, coverm_QC, by = "genome")
+#aggregate by sample
+CO_dist = aggregate(relative ~ Sample, data=CO_abund, FUN=sum)
+```
+
+methane oxidation
+```{r}
+CH4 = filter(genome_info, genome_info$header == "methanotrophy")
+#sum that data by genome to find the total CO genes in each genome
+CH4_genes = aggregate(present ~ genome, data=CH4, FUN=sum)
+#subset the above df to get a list of genomes that have at least one gene involved in CO catabolism
+CH4_MAGs = filter(CH4_genes, CH4_genes$present >= 1)
+CH4_abund = merge(CH4_MAGs, coverm_QC, by = "genome")
+#aggregate by sample
+CH4_dist = aggregate(relative ~ Sample, data=CH4_abund, FUN=sum)
+```
+
+
+```{r}
+all_genomes <- unique(c(
+  CH4_MAGs$genome,
+  CO_MAGs$genome,
+  nitrogen_MAGs$genome,
+  sulfur_MAGs$genome
+))
+
+write.csv(all_genomes, paste0(rootdir, "/refined_analysis/refined_tables/catabolism_MAGs_06152026.csv"), row.names = FALSE, col.names = "genome")
+```
+
+total number of MAGs
+```{r}
+sulfur_MAGs = sulfur_MAGs %>%
+    rename("sulfur_present" = "present")
+nitrogen_MAGs = nitrogen_MAGs %>%
+    rename("nitrogen_present" = "present")
+CO_MAGs = CO_MAGs %>%
+    rename("CO_present" = "present")
+CH4_MAGs = CH4_MAGs %>%
+    rename("CH4_present" = "present")
+
+x = merge(CO_MAGs, CH4_MAGs, by = "genome", all = TRUE)
+y = merge(sulfur_MAGs, nitrogen_MAGs, by = "genome", all = TRUE)
+MAG_catabolisms = merge(x,y,by = "genome", all = TRUE)
+MAG_catabolisms_list = MAG_catabolisms
+
+MAG_catabolisms = MAG_catabolisms %>% mutate(nitrogen_present = ifelse(nitrogen_present >= 1, 1, nitrogen_present))
+MAG_catabolisms = MAG_catabolisms %>% mutate(sulfur_present = ifelse(sulfur_present >= 1, 1, sulfur_present))
+MAG_catabolisms = MAG_catabolisms %>% mutate(CO_present = ifelse(CO_present >= 1, 1, CO_present))
+MAG_catabolisms = MAG_catabolisms %>% mutate(CH4_present = ifelse(CH4_present >= 1, 1, CO_present))
+MAG_catabolisms$genome = NULL
+MAG_catabolisms[is.na(MAG_catabolisms)] <- 0
+
+MAG_catabolisms = MAG_catabolisms %>%
+    rename("Sulfur Oxidation" = "sulfur_present")
+MAG_catabolisms = MAG_catabolisms %>%
+    rename("Ammonia Oxidation" = "nitrogen_present")
+MAG_catabolisms = MAG_catabolisms %>%
+    rename("Carbon Monoxide Oxidation" = "CO_present")
+MAG_catabolisms = MAG_catabolisms %>%
+    rename("Methane Oxidation" = "CH4_present")
+m = as.matrix(MAG_catabolisms)
+
+vd <- euler(m)
+venn = plot(vd, 
+     legend = TRUE, 
+     quantities= TRUE,
+     fill = c(alpha("orange", 0.5), alpha("green", 0.5), "pink", alpha("blue", 0.5))
+     )
+
+venn
+```
+
+```{r}
+flexible_genomes <- MAG_catabolisms_list %>%
+  filter(CO_present >= 1, sulfur_present >= 1, nitrogen_present >= 1)
+
+genome_list <- flexible_genomes$genome
+print(genome_list)
+
+flexible_genomes = merge(flexible_genomes, taxonomy, by.x = "genome", all.x = TRUE)
+print(flexible_genomes)
+```
+
+all catabolisms across all depths
+```{r}
+sulfur_dist = sulfur_dist %>%
+    rename("sulfur_relative" = "relative")
+nitrogen_dist = nitrogen_dist %>%
+    rename("nitrogen_relative" = "relative")
+CO_dist = CO_dist %>%
+    rename("CO_relative" = "relative")
+CH4_dist = CH4_dist %>%
+    rename("CH4_relative" = "relative")
+
+x = merge(CH4_dist, CO_dist, by = "Sample", all = TRUE)
+y = merge(sulfur_dist, nitrogen_dist, by = "Sample", no.dups = TRUE)
+all_catabolisms = merge(x,y, by = "Sample")
+
+all_catabolisms = select(all_catabolisms, c("Sample", "sulfur_relative", "nitrogen_relative", "CO_relative", "CH4_relative"))
+all_catabolisms = pivot_longer(all_catabolisms, names_to = "catabolism", values_to = "relative", cols = ends_with("_relative"))
+
+all_catabolisms <- all_catabolisms %>%
+  separate(
+    col = Sample,   
+    into = c("site", "depth"), 
+    sep = "_"    
+  )
+
+all_catabolisms = all_catabolisms %>%
+  mutate(relative = replace_na(relative, 0))
+
+```
+
+```{r}
+ggplot(data = all_catabolisms) +
+  geom_col(aes(x = catabolism, y = relative, fill = catabolism)) +
+  facet_grid(depth~factor(site, levels = c("OC6", "OC5", "OC4", "OC3", "OC2"))) + 
+  theme_few() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x=element_blank())
+
+cat_labs <- as_labeller(c(
+  'sulfur_relative'="Sulfur Oxidation",
+  'nitrogen_relative'="Ammonia Oxidation",
+  'CO_relative'="Carbon Monoxide Oxidation",
+  'CH4_relative'="Methane Oxidation"
+))
+
+all_catabolisms$depth = as.numeric(all_catabolisms$depth)
+
+all_bubble = ggplot(data = all_catabolisms, aes(x=site, y=depth, size = relative*100, color = catabolism)) +
+  facet_wrap(~catabolism, nrow = 2, ncol = 2, labeller = cat_labs) + 
+  geom_point(alpha=0.5) +
+  scale_size(range = c(1, 10), name="Percent Relative Abundance") + 
+  ylim(4500,0) + 
+  scale_x_discrete(limits=c("OC6", "OC5","OC4","OC3", "OC2")) + 
+  theme_few() +
+  ylab("Depth (m)") + 
+  scale_color_manual(values = c("green", "orange", "blue", "pink")) +
+  guides(color = FALSE)
+
+all_bubble
+```
+
+```{r}
+CO_total_abund = sum(CO_abund$relative_total)
+sulfur_total_abund = sum(sulfur_abund$relative_total)
+nitrogen_total_abund = sum(nitrogen_abund$relative_total)
+CH4_total_abund = sum(CH4_abund$relative_total)
+
+catabolisms = c("CO", "sulfur", "nitrogen", "CH4")
+total_relative_abundance = c(CO_total_abund, sulfur_total_abund, nitrogen_total_abund, CH4_total_abund)
+color = c("orange", "pink", "blue", "green")
+MAG_count = c(nrow(CO_MAGs), nrow(sulfur_MAGs), nrow(nitrogen_MAGs), nrow(CH4_MAGs))
+df = data.frame(catabolisms, total_relative_abundance, color, MAG_count)
+df$label = paste("n=", MAG_count, sep = "")
+
+all = ggplot(data = df) +
+  geom_col(aes(x = catabolisms, y = total_relative_abundance * 100, fill = catabolisms)) +
+  theme_few() +
+  xlab("") +
+  ylab("% Relative Abundance\nof Total Community") + 
+  scale_fill_manual(values = c("green", "orange", "blue", "pink")) +
+  ylim(0, 16) +
+  scale_x_discrete(breaks = c("CH4", "CO", "nitrogen", "sulfur"),
+                   labels = c("Methane Oxidation", "CO Oxidation", "Ammonia\nOxidation", "Sulfur\nOxidation")) +
+  geom_text(aes(x = catabolisms, y = total_relative_abundance * 100, label = label), 
+            nudge_y = 1, size = 5) + 
+  theme(legend.position = "none")
+
+all
+```
+
+patchwork together
+```{r}
+layout = "
+AB
+CC
+CC
+CC
+"
+
+final = all + venn + all_bubble + plot_layout(design = layout, guides = "collect") + plot_annotation(title = 'Distribution of Catabolisms', subtitle = "Relative Abundance: mean coverage of all MAGs in sample with a given catabolism/total coverage of all MAGs in dataset(A) or in a sample (B)", tag_levels = 'A')
+
+final
+
+ggsave(paste(rootdir, "refined_analysis/refined_figures/06152026/refined_figure3_composite_raw_06152026.pdf", sep = ""), plot = final, width = 11, height = 11, units = "in")
+
+```

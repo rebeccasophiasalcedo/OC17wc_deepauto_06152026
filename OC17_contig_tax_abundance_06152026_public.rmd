@@ -1,0 +1,204 @@
+---
+title: "OC17 contig taxonomy abundance"
+output: html_document
+date: "2024-06-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(stringr)
+library(ggthemes)
+library(pals)
+```
+
+```{r message=FALSE, warning=FALSE}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/gene_based/contig_taxonomy/"
+homedir = "/scratch/users/rsalcedo/OC17wc_deepauto/gene_based/"
+scaffoldtax = read_csv(paste(rootdir, "revision_scaffold_taxonomy_2500bp.csv", sep = ""))
+sample_list = c("3000m1000m", "3000m150m", "3000m2000m", "3000m3000m", "3000m500m", "3000m50m", "3500m1000m", "3500m150m", "3500m2000m", "3500m3000m", "3500m500m", "3500m50m", "4000m1000m", "4000m150m", "4000m2000m", "4000m3000m", "4000m500m", "4000m50m", "4500m150m", "4500m2000m", "4500m3000m", "4500m4000m", "4500m500m", "4500m50m", "500m150m", "500m500m", "500m50m", "4500m1000m")
+```
+
+```{r}
+#read in gene info
+gene_info = read_csv(paste0(homedir, "R_output/supptable_genes_06152026.csv"))
+
+#rename for matching columns
+gene_info = gene_info %>%
+  rename("gene_coverage" = "coverage") %>%
+  rename("gene_breadth" = "breadth") %>%
+  rename("gene_breadth_minCov" = "breadth_minCov")
+
+#add in scaffold/gene taxonomy and format table
+supptable_gene_tax = merge(gene_info, scaffoldtax, by = "scaffold", all.x = TRUE)
+
+select(supptable_gene_tax, "scaffold", "gene", "KO", "reconciled_taxonomy")
+write.csv(supptable_gene_tax, paste0(rootdir, "/supptable_gene_tax_06152026.csv"))
+
+#count n taxonomy encoding KO K15016
+count_K15016 <- supptable_gene_tax %>%
+  filter(KO == "K15016") %>%
+  group_by(reconciled_taxonomy) %>%
+  summarise(count = n())
+
+```
+
+move all instrain gene_info.tsv's to a single folder
+```{r}
+#for gzipped ones
+sink(paste0(homedir,"scaffold_gzip_cp.sh"))
+
+for(i in sample_list) {
+  cat("cp ", homedir, "inStrain/", i, "_inStrain/output/", i, "_inStrain_scaffold_info.tsv.gz ", homedir, "inStrain/scaffold_info/","\n", sep = "")
+}
+sink()
+
+file.show(paste0(homedir,"scaffold_gzip_cp.sh"))
+```
+
+```{r}
+#for non gzipped ones
+
+sink(paste0(homedir,"scaffold_cp.sh"))
+for(i in sample_list) {
+  cat("cp ", homedir, "inStrain/", i, "_inStrain/output/", i, "_inStrain_scaffold_info.tsv ", homedir, "inStrain/scaffold_info/","\n", sep = "")
+}
+sink()
+
+file.show(paste0(homedir,"scaffold_cp.sh"))
+
+```
+
+```{r message=FALSE, warning=FALSE}
+for(i in sample_list) {                                           
+  scaffold = read_tsv(paste(homedir, "inStrain/scaffold_info/", i, "_inStrain_scaffold_info.tsv", sep = ""), col_names = TRUE)
+  scaffold = select(scaffold, c("scaffold", "length", "coverage", "breadth"))
+  assign(paste("scaffold_", i, sep = ""), scaffold)
+}
+
+df_list = mget(ls(pattern = "scaffold_"))
+scaffold_cov = bind_rows(df_list)
+
+
+scaffold_cov$site = str_split_i(scaffold_cov$scaffold, "_", 2)
+scaffold_cov$depth = str_split_i(scaffold_cov$scaffold, "_", 3)
+scaffold_cov$sample = paste(scaffold_cov$site, scaffold_cov$depth, sep = "")
+```
+
+```{r}
+merged = merge(scaffoldtax, scaffold_cov, by = "scaffold", all.x = TRUE)
+
+sample_cov = merged %>% 
+  group_by(sample) %>% 
+  summarise(sample_coverage = sum(coverage))
+
+merged_relative = left_join(merged, sample_cov, "sample")
+
+merged_relative$relative = merged_relative$coverage/merged_relative$sample_cov
+```
+
+```{r}
+merged_relative = merged_relative %>% mutate(site = ifelse(site == "4500m", "OC6", site))
+merged_relative = merged_relative %>% mutate(site = ifelse(site == "4000m", "OC5", site))
+merged_relative = merged_relative %>% mutate(site = ifelse(site == "3500m", "OC4", site))
+merged_relative = merged_relative %>% mutate(site = ifelse(site == "3000m", "OC3", site))
+merged_relative = merged_relative %>% mutate(site = ifelse(site == "500m", "OC2", site))
+
+merged_relative = merged_relative %>% mutate(reconciled_taxonomy = ifelse(reconciled_taxonomy == "eukaryote", "Eukaryote", reconciled_taxonomy))
+merged_relative = merged_relative %>% mutate(reconciled_taxonomy = ifelse(reconciled_taxonomy == "unclassified", "Unclassified", reconciled_taxonomy))
+merged_relative = merged_relative %>% mutate(reconciled_taxonomy = ifelse(reconciled_taxonomy == "unclassifed", "Unclassified", reconciled_taxonomy))
+
+unique(merged_relative$reconciled_taxonomy)
+
+#drop those marked as euks
+merged_relative_noeuks = merged_relative %>% filter(reconciled_taxonomy != "Eukaryote")
+
+```
+
+```{r}
+
+result <- merged_relative %>%
+  filter(reconciled_taxonomy %in% c("Nitrospirota", "Nitrospinota")) %>%
+  group_by(sample) %>%
+  summarize(
+    total_relative = sum(relative, na.rm = TRUE),
+    total_scaffolds = n()
+  )
+
+# Print the result
+print(result)
+
+result <- merged_relative %>%
+  filter(reconciled_taxonomy %in% c("Nitrososphaerota")) %>%
+  group_by(sample) %>%
+  summarize(
+    total_relative = sum(relative, na.rm = TRUE),
+    total_scaffolds = n()
+  )
+
+# Print the result
+print(result)
+
+
+```
+
+```{r}
+palette <- stepped(n=24)
+
+palette <- c(
+  "steelblue4", 
+  "green4",
+  "#6A3D9A", 
+  "#FF7F00", 
+  "khaki1",
+  "gold1", 
+  "#FB9A99", 
+  "palegreen2",
+  "yellow4", 
+  "#FDBF6F", 
+  "gray70", 
+  "yellow3",
+  "maroon", 
+  "dodgerblue2",
+  "turquoise3", 
+  "plum4", 
+  "skyblue", 
+  "green1",
+  "darkorange4", 
+  "brown", 
+  "black", 
+  "lightgray", 
+  "purple", 
+  "deeppink"
+)
+
+ggplot(merged_relative_noeuks, aes(fill=reconciled_taxonomy, color = reconciled_taxonomy, y=relative, x=depth)) + 
+  geom_bar(position="fill", stat="identity") +
+  facet_grid(~factor(site, levels = c("OC6", "OC5", "OC4", "OC3", "OC2")))+
+  coord_flip() +
+  ylab("Relative Abundance of Scaffolds Containing Genes Involved in Autotrophic Pathways") +
+  xlab("Depth") +
+  theme_few() +
+  theme(legend.position = "bottom", 
+        strip.text = element_text(size = 16), 
+        axis.title.y = element_text(size = 16),
+        axis.title.x = element_text(size = 16),
+        axis.text.x = element_text(size = 14),
+        axis.text.y = element_text(size = 14)
+        ) +
+  scale_fill_manual(values = palette) + 
+  scale_color_manual(values = palette) + 
+  scale_x_discrete(limits=c("4000m","3000m","2000m", "1000m", "500m", "150m" ,"50m"))
+  
+
+ggsave(paste(rootdir, "/contigtax_abundance_06152026.pdf", sep = ""), width = 15, height = 8, units = "in")
+```
+

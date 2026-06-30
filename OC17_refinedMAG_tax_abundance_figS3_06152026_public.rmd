@@ -1,0 +1,211 @@
+---
+title: "OC17_refinedMAG_tax_abundance_figS5"
+output: html_document
+date: "2025-11-19"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(purrr)
+library(stringr)
+
+library(ggplot2)
+library(ggthemes)
+library(patchwork)
+library(RColorBrewer)
+library(png)
+library(pals)
+library(patchwork)
+
+```
+
+```{r}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/"
+```
+
+```{r define color palettes}
+c38 = c("#808080", "#d3d3d3", "#556b2f", "#a0522d", "#228b22", "#191970", "#8b0000", "#808000", "#008080", "#4682b4", "#9acd32", "#00008b", "#daa520", "#8fbc8f", "#8b008b", "#b03060", "#d2b48c", "#ff0000", "#00ced1", "#ff8c00", "#ffb6c1", "#0000cd", "#7fff00", "#9400d3", "#00ff7f", "#9370db", "#ff6347", "#ff00ff", "#1e90ff", "#f0e68c", "#dda0dd", "#90ee90", "#ff1493", "#ffa07a", "#ee82ee", "#87cefa", "#7fffd4", "#ffff00")
+
+c26 <- c(
+  "dodgerblue2", "#E31A1C", "green4", "#6A3D9A", "#FF7F00", "black", "gold1", "skyblue2", "#FB9A99", "palegreen2","#CAB2D6", "#FDBF6F", "gray70", "khaki2", "maroon", "orchid1", "deeppink1", "blue1", "steelblue4", "darkturquoise", "green1", "yellow4", "yellow3", "darkorange4", "brown", "#808080"
+)
+```
+
+```{r message=FALSE, warning=FALSE}
+coverm = read_csv(paste(rootdir, "refined_analysis/merged_coverM/refined_coverM_all_06152026.csv", sep = ""))
+genome_info = read_csv(paste(rootdir, "refined_analysis/refined_gtdb/gtdb_summary_06152026.csv", sep = ""))
+catabolism_mags = read_csv(paste0(rootdir, "/refined_analysis/refined_tables/catabolism_MAGs_06152026.csv"))
+catabolism_mags = catabolism_mags %>%
+  dplyr::rename("genome" = "x")
+genome_info = merge(genome_info, catabolism_mags, by = "genome")
+```
+
+```{r}
+coverm$Sample = paste(coverm$site, coverm$depth, sep = "_")
+coverm_QC = filter(coverm, covered_fraction >= 0.50)
+sample_cov = coverm_QC %>% 
+  group_by(Sample) %>% 
+  summarise(Mean = sum(Mean))
+
+coverm_QC = left_join(coverm_QC, sample_cov, "Sample")
+coverm_QC <- coverm_QC %>% 
+  rename_with(~ "sample_cov", starts_with("Mean.y"))
+coverm_QC <- coverm_QC %>% 
+  rename_with(~ "genome_cov", starts_with("Mean.x"))
+coverm_QC$relative = coverm_QC$genome_cov/coverm_QC$sample_cov
+
+total_data_coverage = sum(unique(coverm_QC$sample_cov))
+coverm_QC$relative_total = coverm_QC$genome_cov/total_data_coverage
+```
+
+```{r}
+genome_info = genome_info %>%
+    mutate(
+    phylum = str_extract(classification, "(?<=p__)[^;]+"),
+    class  = str_extract(classification, "(?<=c__)[^;]+"),
+    order  = str_extract(classification, "(?<=o__)[^;]+"),
+    family = str_extract(classification, "(?<=f__)[^;]+")
+  )
+```
+
+```{r}
+genome_coverage = merge(genome_info, coverm_QC, by = "genome")
+(unique(genome_coverage$phylum))
+```
+
+```{r}
+genome_coverage = genome_coverage %>%
+  mutate(
+    phylum2 = case_when(
+      phylum == "Proteobacteria" & class == "Gammaproteobacteria" ~ "Gammaproteobacteria",
+      phylum == "Proteobacteria" & class == "Alphaproteobacteria" ~ "Alphaproteobacteria",
+      TRUE ~ phylum
+    )
+  )
+
+phyla_list = unique(genome_coverage$phylum2)
+
+# Output directory
+outdir = file.path(rootdir, "refined_analysis/refined_figures/06152026/figureS3/")
+
+for (ph in phyla_list) {
+ phyla_df = genome_coverage %>% filter(phylum2 == ph)
+
+  phyla_df = phyla_df %>%
+    mutate(
+      taxon_source = if_else(is.na(family) | family == "", "order", "family"),
+      family2 = if_else(is.na(family) | family == "", order, family)
+    )
+
+   phyla_df_aggregate = phyla_df %>%
+    group_by(Sample, family = family2, taxon_source) %>%
+    summarise(relative_pct = sum(relative), .groups = "drop") %>%
+    ungroup() %>%
+    mutate(
+      taxon_label = if_else(
+        taxon_source == "order",
+        paste0(family, " (Order)"),
+        family
+      )
+    )
+   
+   phyla_df_aggregate <- phyla_df_aggregate %>%
+  separate(
+    col = Sample,         
+    into = c("site", "depth"), 
+    sep = "_", 
+    remove = FALSE 
+  )
+
+  phyla_df_aggregate = phyla_df_aggregate %>%
+    mutate(
+      taxon_label = factor(
+        taxon_label,
+        levels = rev(sort(unique(taxon_label)))
+      )
+    )
+
+ xmax = max(phyla_df_aggregate$relative_pct, na.rm = TRUE)
+
+p = ggplot(phyla_df_aggregate,
+           aes(fill = taxon_label, color = taxon_label,
+               y = relative_pct, x = depth)) +
+  geom_bar(stat = "identity") +
+  facet_grid(~factor(site, levels = c("OC6", "OC5", "OC4", "OC3", "OC2"))) +
+  coord_flip() +
+  ylab(paste("Relative Autotrophic MAG abundance -", ph)) +
+  xlab("Depth") +
+  theme_few() +
+  theme(
+    legend.position = "bottom",
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) +
+  scale_fill_manual(values = c26) +
+  scale_color_manual(values = c26) +
+  scale_x_discrete(limits = c("4000","3000","2000","1000","500","150","50")) +
+  scale_y_continuous(limits = c(0, xmax)) +
+  guides(
+    fill = guide_legend(reverse = TRUE),
+    color = guide_legend(reverse = TRUE)
+  )
+
+  outfile = file.path(
+    outdir,
+    paste0("refined_figure2B_", tolower(ph), ".pdf")
+  )
+
+  ggsave(outfile, plot = p, width = 11, height = 8, units = "in", dpi = 72)
+  saveRDS(p, file = file.path(outdir, paste0("plot_", tolower(ph), ".rds")))
+}
+
+```
+
+#6152026
+```{r}
+combine_plots_to_pdf = function(outdir,
+                                plots_per_page = 6,
+                                outfile = "figS3_combined_plot_06152026.pdf",
+                                ncol = 2,
+                                nrow = 3) {
+  
+  # 1. Load files
+  rds_files = list.files(outdir, pattern = "^plot_.*\\.rds$", full.names = TRUE)
+  if (length(rds_files) == 0) stop("No plot_*.rds files found in: ", outdir)
+  
+  rds_files = sort(rds_files)
+  plot_list = lapply(rds_files, readRDS)
+  
+  # 2. Pre-tag all plots continuously using uppercase letters
+  for (i in seq_along(plot_list)) {
+    plot_list[[i]] = plot_list[[i]] + ggtitle(LETTERS[i]) + 
+      theme(plot.title = element_text(face = "bold")) 
+  }
+  
+  # 3. Split into pages
+  groups = split(plot_list, ceiling(seq_along(plot_list) / plots_per_page))
+  
+  pdf_path = file.path(outdir, outfile)
+  pdf(pdf_path, width = 16, height = 18)
+  
+  # 4. Wrap and print each page (without using plot_annotation tag_levels)
+  for (grp in groups) {
+    layout <- wrap_plots(grp, ncol = ncol, nrow = nrow)
+    print(layout)
+  }
+
+  dev.off()
+}
+```
+
+```{r}
+combine_plots_to_pdf(outdir,
+                     plots_per_page = 6,
+                     outfile = "combined_3page_6plots_per_page_06152026.pdf")
+```

@@ -1,0 +1,453 @@
+---
+title: "OC17 MAG Taxonomic Abundance - refined"
+output: html_document
+date: "2024-05-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(data.table)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(purrr)
+library(stringr)
+
+library(ggplot2)
+library(ggthemes)
+library(patchwork)
+library(RColorBrewer)
+library(png)
+library(pals)
+library(gtools)
+```
+
+```{r}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/"
+```
+
+```{r message=FALSE, warning=FALSE}
+coverm = read_csv(paste(rootdir, "refined_analysis/merged_coverM/refined_coverM_all_06152026.csv", sep = ""))
+gtdb_info = read_csv(paste(rootdir, "refined_analysis/refined_gtdb/gtdb_summary_06152026.csv", sep = ""))
+catabolism_MAGs = read_csv(paste(rootdir, "refined_analysis/refined_tables/catabolism_MAGs_06152026.csv", sep = ""), col_names = "genome")
+
+genome_info = merge(gtdb_info, catabolism_MAGs, by = "genome")
+```
+
+```{r define color palettes}
+c38 = c("#808080", "#d3d3d3", "#556b2f", "#a0522d", "#228b22", "#191970", "#8b0000", "#808000", "#008080", "#4682b4", "#9acd32", "#00008b", "#daa520", "#8fbc8f", "#8b008b", "#b03060", "#d2b48c", "#ff0000", "#00ced1", "#ff8c00", "#ffb6c1", "#0000cd", "#7fff00", "#9400d3", "#00ff7f", "#9370db", "#ff6347", "#ff00ff", "#1e90ff", "#f0e68c", "#dda0dd", "#90ee90", "#ff1493", "#ffa07a", "#ee82ee", "#87cefa", "#7fffd4", "#ffff00")
+
+c26 <- c(
+  "dodgerblue2", "#E31A1C", "green4", "#6A3D9A", "#FF7F00", "black", "gold1", "skyblue2", "#FB9A99", "palegreen2","#CAB2D6", "#FDBF6F", "gray70", "khaki2", "maroon", "orchid1", "deeppink1", "blue1", "steelblue4", "darkturquoise", "green1", "yellow4", "yellow3", "darkorange4", "brown", "#808080"
+)
+```
+
+```{r}
+length(unique(coverm$genome))
+coverm$Sample = paste(coverm$site, coverm$depth, sep = "_")
+length(unique(coverm$Sample))
+```
+
+```{r}
+#remove genomes that are less than 50% covered
+coverm_QC = filter(coverm, covered_fraction >= 0.50)
+
+#group by sample, sum all genome coverage within a sample and make a new df that gives that total value for each sample
+sample_cov = coverm_QC %>% 
+  group_by(Sample) %>% 
+  summarise(Mean = sum(Mean))
+
+#append that value to the original df
+coverm_QC = left_join(coverm_QC, sample_cov, "Sample")
+#rename some things
+coverm_QC = coverm_QC %>% 
+  rename_with(~ "sample_cov", starts_with("Mean.y"))
+coverm_QC = coverm_QC %>% 
+  rename_with(~ "genome_cov", starts_with("Mean.x"))
+
+#calculate the relative mean abundace of each genome in each sample using the previously calculated sample total coverage
+coverm_QC$relative = coverm_QC$genome_cov/coverm_QC$sample_cov
+
+length(unique(coverm_QC$genome))
+length(unique(coverm_QC$Sample))
+summary(coverm_QC$relative)
+```
+
+```{r}
+#rename some things for plotting purposes
+genome_info$kingdom = sub("\\;p.*", "", genome_info$classification)
+genome_info$phylum = sub(".*p__", "", genome_info$classification)
+genome_info$phylum = sub(".c__.*", "", genome_info$phylum)
+
+
+genome_info$class = sub(".*c__", "", genome_info$classification)
+genome_info$class = sub(".o__.*", "", genome_info$class)
+
+genome_info$kingdom = sub(".*d__", "", genome_info$kingdom)
+
+genome_info$order = sub(".*o__", "", genome_info$classification)
+genome_info$order = sub("\\;f.*", "", genome_info$order)
+
+genome_info$family = sub(".*f__", "", genome_info$classification)
+genome_info$family = sub("\\;g.*", "", genome_info$family)
+
+genome_info = genome_info %>% mutate(kingdom = ifelse(kingdom == "Bacteria", "B", kingdom))
+genome_info = genome_info %>% mutate(kingdom = ifelse(kingdom == "Archaea", "A", kingdom))
+genome_info = genome_info %>% mutate(phylum = ifelse(class == "Gammaproteobacteria", "Gammaproteobacteria", phylum))
+genome_info = genome_info %>% mutate(phylum = ifelse(class == "Alphaproteobacteria", "Alphaproteobacteria", phylum))
+
+```
+
+```{r}
+
+length(unique(genome_info$genome))
+#combine the relative abundace of each genome in the total microbial community data with the taxonomic data of our chemoautotrophs
+
+genome_coverage = merge(genome_info, coverm_QC, by = "genome")
+
+#check which genomes are now included
+#genome_coverage is now subsetted to just the autotrophs, but relative values are relative to total community
+length(unique(genome_info$genome))
+length(unique(genome_coverage$genome))
+length(unique(coverm_QC$genome))
+```
+
+
+```{r}
+#calculate the mean number of autotrophic phyla represented in each sample
+genome_coverage = genome_coverage %>%
+  group_by(Sample) %>%
+  mutate(phyla_count = n_distinct(phylum))
+
+df2 = select(genome_coverage, c("Sample", "phyla_count"))
+df2 = df2[!duplicated(df2), ]
+df2$depth = df2$Sample
+df2$site = df2$Sample
+
+df2  = df2 %>%
+  mutate(depth = case_when(
+    endsWith(Sample, "_50") ~ "50",
+    endsWith(Sample, "_150") ~ "150",
+    endsWith(Sample, "_500") ~ "500",
+    endsWith(Sample, "_1000") ~ "1000",
+    endsWith(Sample, "_2000") ~ "2000",
+    endsWith(Sample, "_3000") ~ "3000",
+    endsWith(Sample, "_4000") ~ "4000")
+  )
+    
+df2  = df2  %>%
+  mutate(site = case_when(
+    startsWith(Sample, "OC2") ~ "OC2",
+    startsWith(Sample, "OC3") ~ "OC3",
+    startsWith(Sample, "OC4") ~ "OC4",
+    startsWith(Sample, "OC5") ~ "OC5",
+    startsWith(Sample, "OC6") ~ "OC6")
+  )
+
+df2$depth = as.numeric(df2$depth)
+
+average_phyla_by_depth <- df2 %>%
+  group_by(depth) %>%
+  summarise(mean_phyla_count = mean(phyla_count))
+
+# Print the result
+print(average_phyla_by_depth)
+
+```
+
+```{r}
+#calculate the  number of autotrophic MAGs assessed in each sample
+genome_coverage = merge(genome_info, coverm_QC, by = "genome")
+
+genome_coverage = genome_coverage %>%
+  group_by(Sample) %>%
+  mutate(MAG_count = n_distinct(genome))
+
+df = select(genome_coverage, c("Sample", "MAG_count"))
+df = df[!duplicated(df), ]
+df$depth = df$Sample
+df$site = df$Sample
+
+df  = df %>%
+  mutate(depth = case_when(
+    endsWith(Sample, "_50") ~ "50",
+    endsWith(Sample, "_150") ~ "150",
+    endsWith(Sample, "_500") ~ "500",
+    endsWith(Sample, "_1000") ~ "1000",
+    endsWith(Sample, "_2000") ~ "2000",
+    endsWith(Sample, "_3000") ~ "3000",
+    endsWith(Sample, "_4000") ~ "4000")
+  )
+    
+df  = df  %>%
+  mutate(site = case_when(
+    startsWith(Sample, "OC2") ~ "OC2",
+    startsWith(Sample, "OC3") ~ "OC3",
+    startsWith(Sample, "OC4") ~ "OC4",
+    startsWith(Sample, "OC5") ~ "OC5",
+    startsWith(Sample, "OC6") ~ "OC6")
+  )
+
+df$depth = as.numeric(df$depth)
+```
+
+```{r}
+category_colors <- c(
+  "Gammaproteobacteria" = "#B3CDE3",  
+  "Alphaproteobacteria" = "#1F78B4", 
+  "Thermoplasmatota" = "#3E8E41",    
+  "Myxococcota_A" = "#6A3D9A",       
+  "Planctomycetota" = "#CAB2D9",      
+  "Actinobacteriota" = "#9467BD",    
+  "Thermoproteota" = "#B2DF8A",      
+  "Hydrogenedentota" = "#0066CC",    
+  "Desulfobacterota_B" = "#F2F2F2",  
+  "SAR324" = "#F1E3A1",               
+  "Chloroflexota" = "#FED9A6",        
+  "Marinisomatota" = "#FB9A99",      
+  "JAAXHH01" = "#E31A1C",            
+  "Cyanobacteria" = "#FDDAEC",      
+  "Gemmatimonadota" = "#FDBF6F",    
+  "Myxococcota" = "#FF7F00",        
+  "Halobacteriota" = "#CCEBC5",      
+  "UBA8248" = "#E377C2"              
+)
+```
+
+```{r}
+bar_totals=genome_coverage %>%
+  group_by(site, depth) %>%
+  summarise(
+    total_height = sum(relative * 100, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+df$depth = as.character(df$depth)
+bar_totals$depth = gsub("m","", bar_totals$depth)
+
+
+label_df=bar_totals %>%
+  left_join(df, by = c("site", "depth")) %>%
+  mutate(label = paste0("n=", MAG_count))
+
+label_df=label_df %>%
+  mutate(depth = paste0(depth, "m"))
+```
+
+```{r}
+aggregate=genome_coverage %>%
+    group_by(Sample, phylum) %>%
+    summarise(relative_pct = sum(relative*100), .groups = "drop") %>%
+    ungroup()
+```
+
+```{r}
+genome_coverage$depth = paste0(genome_coverage$depth, "m")
+```
+
+```{r}
+#clean the white space off phylum names so it can sort properly
+genome_coverage = genome_coverage %>%
+  mutate(phylum = trimws(phylum))
+
+# replace underscores and make phylum name lowercase
+genome_coverage = genome_coverage %>%
+  mutate(
+    phylum_sort = tolower(gsub("_", " ", phylum))
+  )
+
+# use that cleaned phylum data to get alphabetical sorting
+phylum_levels = genome_coverage %>%
+  distinct(phylum, phylum_sort) %>% 
+  arrange(phylum_sort) %>%
+  pull(phylum) %>%
+  unique() 
+
+# factor those alphabetical phyla so it plots right
+genome_coverage = genome_coverage %>%
+  mutate(phylum = factor(phylum, levels = rev(phylum_levels)))
+
+# Plot
+plot = ggplot(genome_coverage, aes(fill = phylum, color = phylum, y = relative*100, x = depth)) + 
+  geom_bar(position = "stack", stat = "identity") +
+  facet_grid(~factor(site, levels = c("OC6", "OC5", "OC4", "OC3", "OC2"))) +
+  coord_flip() +
+  ylab("Relative % Autotrophic MAG abundance of Total Community") +
+  xlab("Depth") +
+  theme_few() +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(size = 16), 
+    axis.title.y = element_text(size = 16),
+    axis.title.x = element_text(size = 16),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14),
+    legend.text=element_text(size=12)
+  ) +
+  scale_fill_manual(values = category_colors) +
+  scale_color_manual(values = category_colors) +
+  scale_x_discrete(limits = c("4000m","3000m","2000m","1000m","500m","150m","50m")) +
+  guides(
+    fill = guide_legend(ncol = 10, reverse = TRUE), 
+    color = guide_legend(ncol = 10, reverse = TRUE)
+  )
+plot
+
+plot2 = plot +
+  geom_text(
+    data = label_df,
+    aes(
+      x = depth,
+      y = total_height +1,  
+      label = MAG_count
+    ),
+    inherit.aes = FALSE,
+    size = 4
+  ) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.15)))
+
+plot2
+```
+
+```{r}
+ggsave(paste(rootdir, "refined_analysis/refined_figures/06152026/refined_figure2B_06152026.pdf", sep = ""), plot2, width = 17, height = 3.5, units = "in", dpi = 72)
+```
+
+```{r}
+target_phyla=c("alphaproteobacteria",
+                  "gammaproteobacteria",
+                  "sar324",
+                  "actinobacteriota",
+                  "thermoproteota")
+
+df_oc6=genome_coverage %>% 
+  filter(
+    site == "OC6",
+    phylum_sort %in% target_phyla
+  ) %>%
+  mutate(
+    depth = factor(depth, levels = c("4000m","3000m","2000m","1000m","500m","150m","50m")),
+    taxon_label = factor(family, levels = sort(unique(family))),
+    show_depth_label = ifelse(phylum_sort == target_phyla[1], TRUE, FALSE)
+  )
+
+#add in 50m for AOA so it plots correctly
+if (!any(df_oc6$phylum_sort == "thermoproteota" & df_oc6$depth == "50m")) {
+  df_oc6=df_oc6 %>%
+    bind_rows(
+      tibble(
+        site = "OC6",
+        phylum_sort = "thermoproteota",
+        depth = factor("50m", levels = levels(df_oc6$depth)),
+        family = NA_character_,
+        relative = 0,
+        taxon_label = NA,
+        show_depth_label = FALSE
+      )
+    )
+}
+
+taxon_levels=rev(sort(unique(df_oc6$taxon_label)))
+df_oc6=df_oc6 %>%
+  mutate(taxon_label = factor(taxon_label, levels = taxon_levels))
+
+phylum_labels=c(
+  "actinobacteriota"      = "Actinobacteriota",
+  "alphaproteobacteria"   = "Alphaproteobacteria",
+  "gammaproteobacteria"   = "Gammaproteobacteria",
+  "sar324"                = "SAR324",
+  "thermoproteota"        = "Thermoproteota"
+)
+
+OC6_plot = ggplot(df_oc6, aes(x = depth, y = relative*100, fill = taxon_label, color = taxon_label)) +
+  geom_bar(position = "stack", stat = "identity") +
+  coord_flip() +
+  facet_grid(
+    ~ phylum_sort, 
+    scales = "free",
+    labeller = labeller(phylum_sort = phylum_labels)
+  ) +
+  scale_fill_manual(values = c38, drop = FALSE) +
+  scale_color_manual(values = c38, drop = FALSE) +
+  theme_few() +
+  guides(
+    fill = guide_legend(ncol = 9, reverse = TRUE),
+    color = guide_legend(ncol = 9, reverse = TRUE)
+  ) +
+  theme(
+    legend.position = "bottom",
+    strip.text = element_text(size = 16), 
+    axis.title.y = element_text(size = 16),
+    axis.title.x = element_text(size = 16),
+    axis.text.x = element_text(size = 14),
+    axis.text.y = element_text(size = 14),
+    legend.text=element_text(size=12)
+  ) +
+  ylab("Relative % Autotrophic MAG abundance of Total Community") +
+  xlab("Depth (m)") +
+  scale_x_discrete(limits = c("4000m","3000m","2000m","1000m","500m","150m","50m"))
+
+OC6_plot
+
+```
+
+```{r}
+ggsave(paste(rootdir, "refined_analysis/refined_figures/06152026/OC6_plot_06152026.pdf", sep = ""), width = 17, height = 4.5, units = "in", dpi = 72)
+```
+
+```{r}
+fig2BC = plot2 / OC6_plot
+
+fig2BC
+```
+
+```{r}
+ggsave(paste(rootdir, "refined_analysis/refined_figures/06152026/fig2BC_06152026.pdf", sep = ""), fig2BC, width = 17, height = 11, units = "in", dpi = 72)
+```
+
+#make table 2 (-pathway found which is added in manually by referencing figure 4)
+
+```{r}
+
+# Calculate the true Phylum-level relative abundance per sample
+phylum_abundance <- genome_coverage %>%
+  group_by(kingdom, phylum, Sample) %>%
+  summarise(sample_total_rel = sum(relative, na.rm = TRUE), .groups = "drop") %>%
+  group_by(kingdom, phylum) %>%
+  summarise(
+    `Mean Relative Abundance (%)` = mean(sample_total_rel, na.rm = TRUE) * 100,
+    `Maximum Relative Abundance (%)` = max(sample_total_rel, na.rm = TRUE) * 100,
+    .groups = "drop"
+  )
+
+# Calculate MAG and family counts per Phylum
+phylum_meta <- genome_coverage %>%
+  group_by(kingdom, phylum) %>%
+  summarise(
+    `Phylum* (families, n=)` = paste0(unique(phylum), " (families, n=", n_distinct(family), ")"),
+    `MAGs (n=)` = n_distinct(genome),
+    .groups = "drop"
+  )
+
+# Combine into the final summary table
+summary_table <- left_join(phylum_meta, phylum_abundance, by = c("kingdom", "phylum")) %>%
+  rename(Domain = kingdom) %>%
+  select(
+    Domain, 
+    `Phylum* (families, n=)`, 
+    `MAGs (n=)`, 
+    `Mean Relative Abundance (%)`, 
+    `Maximum Relative Abundance (%)`
+  )
+
+print(summary_table)
+```
+
+```{r}
+phylum_summary <- genome_info %>%
+  count(phylum, name = "MAG_count")
+write.csv(x = phylum_summary, file = paste0(rootdir, "refined_analysis/refined_tables/table2_phylumsummary_06152026.csv"), row.names = FALSE)
+```

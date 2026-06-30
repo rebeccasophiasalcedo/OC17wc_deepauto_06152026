@@ -1,0 +1,497 @@
+---
+title: "OC17 refined MAGs catabolic gene trees"
+output: html_document
+date: "2024-06-20"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r message=FALSE, warning=FALSE}
+library(data.table)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(purrr)
+library(stringr)
+```
+
+#Set up
+```{r set directories}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/"
+proteindir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/refined_analysis/refined_prodigal/faa"
+genedir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/refined_analysis/refined_kofamscan/csv_processed"
+tables5 = read.csv(paste(rootdir, "refined_analysis/refined_auto_MAGs_06152026.csv", sep = ""))
+```
+
+# Define Functions
+```{r define get gene function}
+find_genes <- function(
+    search_strings,
+    tables5,
+    genedir,
+    proteindir,
+    output_file,
+    file_extension_csv = ".fa_processed.csv",
+    file_extension_faa = ".fa_prodigalORFs.faa"
+) {
+
+  # -----------------------------
+  # Step 1: Find genomes matching KO terms
+  # -----------------------------
+  results_list <- list()
+
+  for (search_string in search_strings) {
+    matching_rows <- subset(
+      tables5,
+      grepl(search_string, KO, ignore.case = TRUE)
+    )
+
+    results_list[[search_string]] <- unique(matching_rows$genome)
+  }
+
+  # -----------------------------
+  # Step 2: Extract gene IDs
+  # -----------------------------
+  match_results <- list()
+
+  for (search_string in names(results_list)) {
+
+    for (prefix in results_list[[search_string]]) {
+
+      file_path <- file.path(
+        genedir,
+        paste0(prefix, file_extension_csv)
+      )
+
+      if (!file.exists(file_path)) next
+
+      csv_data <- read.csv(file_path)
+
+      current_matches <- character()
+
+      for (i in seq_len(nrow(csv_data))) {
+
+        row_has_match <- any(
+          sapply(
+            csv_data[i, ],
+            function(x)
+              grepl(search_string,
+                    as.character(x),
+                    ignore.case = TRUE)
+          )
+        )
+
+        if (row_has_match) {
+          current_matches <- c(
+            current_matches,
+            csv_data[i, "gene"]
+          )
+        }
+      }
+
+      match_results[[paste(search_string,
+                           prefix,
+                           sep = "_")]] <- current_matches
+    }
+  }
+
+  # -----------------------------
+  # Step 3: Build genes_df
+  # -----------------------------
+  genes_df <- do.call(rbind, match_results)
+  genes_df <- as.data.frame(genes_df)
+
+  names(genes_df)[1] <- "gene_id"
+
+  genes_df$gene_id <- gsub(
+    "O",
+    ">O",
+    genes_df$gene_id
+  )
+
+  genes_df$genome <- rownames(genes_df)
+
+  genes_df$KO <- stringr::str_split_i(
+    genes_df$genome,
+    "_",
+    1
+  )
+
+  rownames(genes_df) <- NULL
+
+  genes_df$genome <- sub(
+    "^[^_]+_",
+    "",
+    genes_df$genome
+  )
+
+  # -----------------------------
+  # Step 4: Extract protein sequences
+  # -----------------------------
+  results <- vector("list", nrow(genes_df))
+
+  for (i in seq_len(nrow(genes_df))) {
+
+    genome_prefix <- genes_df$genome[i]
+    gene_id <- genes_df$gene_id[i]
+
+    file_path <- file.path(
+      proteindir,
+      paste0(genome_prefix,
+             file_extension_faa)
+    )
+
+    if (!file.exists(file_path)) next
+
+    file_content <- readLines(file_path)
+
+    matching_line_index <- which(
+      grepl(
+        paste0(gene_id, " "),
+        file_content,
+        fixed = TRUE
+      )
+    )
+
+    if (length(matching_line_index) == 0) next
+
+    start_index <- matching_line_index + 1
+
+    following_lines <- character()
+
+    for (j in start_index:length(file_content)) {
+
+      if (grepl("^>", file_content[j])) {
+        break
+      }
+
+      following_lines <- c(
+        following_lines,
+        file_content[j]
+      )
+    }
+
+    results[[i]] <- data.frame(
+      genome = genome_prefix,
+      gene_id = gene_id,
+      following_lines = paste(
+        following_lines,
+        collapse = ""
+      ),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  # -----------------------------
+  # Combine results and reorder columns
+  # -----------------------------
+  protein_df <- do.call(rbind, results)
+  
+  final_results_df <- merge(
+    protein_df,
+    genes_df,
+    by = c("genome", "gene_id")
+  )
+  
+  # Remove V2 if it exists
+  if ("V2" %in% names(final_results_df)) {
+    final_results_df$V2 <- NULL
+  }
+  
+  # Reorder columns
+  final_results_df <- final_results_df[
+    , c("genome",
+        "gene_id",
+        "KO",
+        "following_lines")
+  ]
+  
+  write.csv(
+    final_results_df,
+    output_file,
+    row.names = FALSE
+  )
+  
+  return(final_results_df)
+  
+}
+```
+
+```{r csv to fasta function}
+csv_to_fasta <- function(
+    csv_file,
+    fasta_file
+) {
+
+  # Read CSV
+  df <- read.csv(
+    csv_file,
+    stringsAsFactors = FALSE
+  )
+
+  # Check required columns exist
+  required_cols <- c(
+    "genome",
+    "gene_id",
+    "KO",
+    "following_lines"
+  )
+
+  missing_cols <- setdiff(
+    required_cols,
+    names(df)
+  )
+
+  if (length(missing_cols) > 0) {
+    stop(
+      paste(
+        "Missing columns:",
+        paste(missing_cols, collapse = ", ")
+      )
+    )
+  }
+
+  # Create FASTA entries
+  fasta_lines <- unlist(
+    lapply(seq_len(nrow(df)), function(i) {
+
+      header <- paste0(
+        "",
+        df$gene_id[i],
+        " # ",
+        df$genome[i],
+        " # ",
+        df$KO[i]
+      )
+
+      sequence <- df$following_lines[i]
+
+      c(header, sequence)
+    })
+  )
+
+  # Write FASTA
+  writeLines(
+    fasta_lines,
+    fasta_file
+  )
+
+  cat(
+    "FASTA written to:",
+    fasta_file,
+    "\n"
+  )
+}
+```
+
+#Pull Genes
+```{r dsrAB and SDO}
+search <- c("K17725", "K11180", "K11181")
+
+results <- find_genes(
+  search_strings = search,
+  tables5 = tables5,
+  genedir = genedir,
+  proteindir = proteindir,
+  output_file = file.path(
+    rootdir,
+    "refined_analysis/gene_trees/sulfur_genes_06152026.csv"
+  )
+)
+
+csv_to_fasta(
+  csv_file = paste0(rootdir, "refined_analysis/gene_trees/sulfur_genes_06152026.csv"),
+  fasta_file = paste0(rootdir, "refined_analysis/gene_trees/sulfur_genes_06152026.fasta")
+)
+```
+
+```{r amo/pmo}
+search <- c("K10944", "K10945", "K10946")
+
+results <- find_genes(
+  search_strings = search,
+  tables5 = tables5,
+  genedir = genedir,
+  proteindir = proteindir,
+  output_file = file.path(
+    rootdir,
+    "refined_analysis/gene_trees/amo_pmo_genes_06152026.csv"
+  )
+)
+
+csv_to_fasta(
+  csv_file = paste0(rootdir, "refined_analysis/gene_trees/amo_pmo_genes_06152026.csv"),
+  fasta_file = paste0(rootdir, "refined_analysis/gene_trees/amo_pmo_genes_06152026.fasta")
+)
+```
+
+```{r nxr/nar}
+search <- c("K00370", "K00371")
+
+results <- find_genes(
+  search_strings = search,
+  tables5 = tables5,
+  genedir = genedir,
+  proteindir = proteindir,
+  output_file = file.path(
+    rootdir,
+    "refined_analysis/gene_trees/nxr_nar_genes_06152026.csv"
+  )
+)
+
+csv_to_fasta(
+  csv_file = paste0(rootdir, "refined_analysis/gene_trees/nxr_nar_genes_06152026.csv"),
+  fasta_file = paste0(rootdir, "refined_analysis/gene_trees/nxr_nar_genes_06152026.fasta")
+)
+```
+
+#Make Trees
+```{r function to make phylogenetic tree scripts}
+make_phylo_scripts <- function(gene_set, ref_file, gene_file) {
+  
+  outdir <- paste0(rootdir, "refined_analysis/gene_trees/", gene_set, "/")
+  
+  combined <- paste0(outdir, gene_set, "_combined.faa")
+  aligned  <- paste0(outdir, gene_set, "_aligned.faa")
+  trimmed  <- paste0(outdir, gene_set, "_trimmed.faa")
+  tree     <- paste0(outdir, gene_set, "_FastTree.tree")
+  
+  # 1. CAT SCRIPT
+  sink(paste0(rootdir, "sh_scripts/", gene_set, "_cat.sh"))
+  
+  cat(
+    "sbatch -J ", gene_set, "_cat -c 1 --mem-per-cpu 4G -p serc -t 02:00:00 --wrap 'cat ",
+    ref_file,
+    " ",
+    gene_file,
+    " > ",
+    combined,
+    "'\n",
+    sep=""
+  )
+  
+  sink()
+
+  # 2. MAFFT SCRIPT
+  sink(paste0(rootdir, "sh_scripts/", gene_set, "_mafft.sh"))
+  
+  cat(
+    "sbatch -J ", gene_set, "_mafft -c 8 --mem-per-cpu 8G -p serc -t 24:00:00 --wrap 'mafft --auto --thread 8 ",
+    combined,
+    " > ",
+    aligned,
+    "'\n",
+    sep=""
+  )
+  
+  sink()
+  
+  # 3. TRIMAL SCRIPT
+  sink(paste0(rootdir, "sh_scripts/", gene_set, "_trimal.sh"))
+  
+  cat(
+    "sbatch -J ", gene_set, "_trimal -c 4 --mem-per-cpu 4G -p serc -t 04:00:00 --wrap 'trimal -in ",
+    aligned,
+    " -out ",
+    trimmed,
+    " -gt 0.1'\n",
+    sep=""
+  )
+  
+  sink()
+  
+  # 4. FASTTREE SCRIPT
+  sink(paste0(rootdir, "sh_scripts/", gene_set, "_fasttree.sh"))
+  
+  cat(
+    "sbatch -J ", gene_set, "_fasttree -c 4 --mem-per-cpu 8G -p serc -t 08:00:00 --wrap 'FastTree -lg ",
+    trimmed,
+    " > ",
+    tree,
+    "'\n",
+    sep=""
+  )
+  
+  sink()
+}
+
+```
+
+```{r generate commands}
+# amoA
+make_phylo_scripts(
+  gene_set = "amoA",
+  ref_file = paste0(rootdir, "refined_analysis/gene_trees/amoA/amo_diamond_et_al.faa"),
+  gene_file = paste0(rootdir, "refined_analysis/gene_trees/amoA/amo_pmo_genes_06152026.fasta")
+)
+
+# nxr/nar
+make_phylo_scripts(
+  gene_set = "nxr_nar",
+  ref_file = paste0(rootdir, "refined_analysis/gene_trees/nxr_nar/nxr_boddicker_mosier.fasta"),
+  gene_file = paste0(rootdir, "refined_analysis/gene_trees/nxr_nar/nxr_nar_genes_06152026.fasta")
+)
+```
+
+```{r program versions for record keeping}
+#MAFFT v7.505
+#trimal v1.4.rev22 build[2015-05-21]
+#FastTree version 2.1.11
+```
+
+```{r tree results}
+#Amo
+  #OC2_500m_contig_147611_7 - OC2_500m_MAG_98
+    #MAG has all three
+  #OC4_2000m_contig_40164_2 = OC4_2000m_MAG_54
+    #MAG has all three
+  #OC3_3000m_contig_2947538_2 = OC3_3000m_MAG_132
+    #MAG has all three
+
+#Mmo
+  #OC6_150m_contig_5247298_5 = OC6_150m_MAG_41
+    #MAG has all 3 subunits, so replace all three to be methane
+  #OC5_1000m_contig_3728025_2 OC5_1000m_MAG_46
+    #MAG has 44 an 45
+  #OC6_150m_contig_3486000_2 = OC6_150m_MAG_352
+    #mag has al 3
+  
+
+#Only nxr/nar gene is not a nxr/nar
+#OC2_50m_MAG_230, >OC2_50m_contig_521530_1, K00371
+
+```
+
+#edit annotation df with results
+alex reports that all dsrAB findings are oxidative and all SDO have right residues, so will not edit those
+use above results to edit the annotation table
+```{r read in dataframe and remove any duplicates}
+refined_auto_MAGs = read.csv(paste0(rootdir, "refined_analysis/refined_auto_MAGs_06152026.csv"))
+
+refined_auto_MAGs$gene_description <- gsub("\\[EC([0-9])", "[EC:\\1", refined_auto_MAGs$gene_description)
+
+refined_auto_MAGs_distinct <- distinct(refined_auto_MAGs)
+```
+
+```{r}
+remove = read.csv(paste0(rootdir, "refined_analysis/gene_trees/06152026_genetree_to_remove.csv"))
+remove$X = NULL
+```
+
+```{r}
+remove_keys <- paste(remove$genome, remove$KO, remove$module, remove$header)
+
+df <- refined_auto_MAGs_distinct %>%
+  mutate(
+    key = paste(genome, KO, module, header),
+    present = if_else(key %in% remove_keys, 0L, present)
+  ) %>%
+  select(-key)
+```
+
+```{r}
+write.csv(df, paste0(rootdir, "/refined_analysis/refined_auto_MAGs_edited_06152026.csv"))
+```
+
