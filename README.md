@@ -16,7 +16,7 @@ OC17_geochemistry_cor_07062026_public.rmd
     
 OC17_refinedMAG_abundance_heatmap_07062026_public.Rmd
   Displays the relative abundance of each genome included in the study throughout the water column, grouped by taxonomic phyla and which
-  pathway they encode. produces figure SX and uses supplementary tables S7 and S9. 
+  pathway they encode. produces figure S5 and uses supplementary tables S7 and S9. 
     
 OC17_refinedMAG_annotation_06152026_public.rmd
   Outlines the processing of refined genomes to generate annotations, taxonomic ID, and relative abundance. produces 
@@ -39,7 +39,7 @@ OC17_refinedMAG_OMtransporters_06152026_public.rmd
 
 OC17_refinedMAG_sulfiteoxidation2genes_06152026_public.Rmd
   Code similar to that in OC17_refinedMAG_cat_potential_fig4_06152026_public.rmd and used to assess the presence of sulfite oxidation genes
-  across genomes included in the study. used to generate figure S5.
+  across genomes included in the study. used to generate figure S6.
 
 OC17_refinedMAG_tax_abundance_fig2_06152026_public.Rmd
   Code used to generate figure 2 panels A and B and assess the relative abundance of genomes assessed in the study by taxonomic lineage. Uses 
