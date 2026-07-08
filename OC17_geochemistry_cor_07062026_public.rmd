@@ -1,0 +1,256 @@
+---
+title: "OC17 gene abundance and geochemistry"
+output: html_document
+date: "2026-07-06"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Set Up
+```{r load libraries, message=FALSE, warning=FALSE}
+library(data.table)
+library(ggplot2)
+library(tidyr)
+library(dplyr)
+library(readr)
+library(ggplot2)
+library(patchwork)
+library(ggthemes)
+library(RColorBrewer)
+library(broom)
+```
+
+```{r define root dir}
+rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/gene_based/geochem/"
+abundir = "/scratch/users/rsalcedo/OC17wc_deepauto/gene_based/R_output/"
+```
+
+```{r read in geochemistry data}
+geochem_original = read.csv(paste(rootdir, "arandia-gorostidi_etal_isme_supptables_urea_tableS1.csv", sep = ""))
+geochem = geochem_original
+geochem$sample = paste(geochem$site, "m", geochem$depth, "m", sep = "")
+
+print(colnames(geochem))
+
+geochem = select(geochem, c("sample", "site", "depth", "Salinity", "Temperature_C", "Fluorescence", "Dissolved_oxygen_sat.", "Average_urea_concentration_nM", "Ammonium_concentration_nM", "Average_nitrate_concentration_uM"))
+```
+
+```{r read in abundance data, message=FALSE, warning=FALSE}
+pathways = read.csv(paste(abundir, "transect_pathwaydf.csv", sep = ""))
+pathways$X = NULL
+KOs = read.csv(paste(abundir, "transect_KOdf.csv", sep = ""))
+KOs$X = NULL
+
+pathway_no_sc = subset(pathways, pathways$metabolism!="single copy")
+
+totals = pathway_no_sc %>% group_by(site_m, depth_m) %>% summarize(sum(normalized_cov))
+totals = totals %>% 
+       dplyr::rename("auto_normcov" = "sum(normalized_cov)")
+totals$sample = paste(totals$site_m, "m", totals$depth_m, "m", sep = "")
+
+pathway_no_sc = pathway_no_sc %>%
+  dplyr::rename("auto_normcov" = "normalized_cov")
+pathway_no_sc$sample = paste(pathway_no_sc$site_m, "m", pathway_no_sc$depth_m, "m", sep = "")
+```
+
+```{r merge df's}
+pathway_geochem = merge(geochem, pathway_no_sc, by = "sample")
+colnames(pathway_geochem)
+pathway_geochem = select(pathway_geochem, c("sample", "site", "depth", "Salinity", "Temperature_C", "Fluorescence", "Dissolved_oxygen_sat.", "Average_urea_concentration_nM", "Ammonium_concentration_nM", "Average_nitrate_concentration_uM", "pathway", "auto_normcov"))
+
+
+totals_geochem = merge(geochem, totals, by = "sample")
+```
+
+#Pearson's R Correlation
+```{r List of variables to test}
+variables = c("sample", "site", "depth", "Salinity", "Temperature_C", "Fluorescence", "Dissolved_oxygen_sat.", "Average_urea_concentration_nM", "Ammonium_concentration_nM", "Average_nitrate_concentration_uM")
+```
+
+```{r define function to calculate}
+calculate_correlation = function(df) {
+  results = data.frame(Variable = character(), 
+                        Correlation = numeric(), 
+                        P.Value = numeric(), 
+                        Adjusted.P.Value = numeric(), 
+                        stringsAsFactors = FALSE)
+  
+  for (var in variables) {
+    x = df[[var]]
+    y = df$auto_normcov
+    
+    valid_indices = complete.cases(x, y) & is.finite(x) & is.finite(y)
+    x = x[valid_indices]
+    y = y[valid_indices]
+    
+    if (length(unique(x)) > 1 && length(unique(y)) > 1) {
+      print(paste("Processing variable:", var))
+      test = try(cor.test(x, y, method = "pearson"), silent = TRUE)
+      
+      if (class(test) != "try-error" && !is.null(test$estimate)) {
+        results = rbind(results, 
+                         data.frame(Variable = var, 
+                                    Correlation = test$estimate, 
+                                    P.Value = test$p.value,
+                                    Adjusted.P.Value = p.adjust(test$p.value, method = "bonferroni", n = length(variables)),
+                                    stringsAsFactors = FALSE))
+      } else {
+        print(paste("Skipping variable:", var, "- correlation not computed"))
+      }
+    } else {
+      print(paste("Skipping variable:", var, "- insufficient unique values"))
+    }
+  }
+  
+  return(results)
+}
+```
+
+```{r total abundance - all depths}
+tot_correlation_results = totals_geochem %>%
+  group_by(site) %>%
+  group_modify(~ calculate_correlation(.x)) %>%
+  ungroup()
+
+print(tot_correlation_results)
+
+#write.csv(tot_correlation_results, paste0(rootdir, "/totals_correlation_results.csv"), row.names = FALSE)
+```
+
+```{r total - excluding 50m all sites}
+totals_geochem_filtered = totals_geochem %>% filter(depth != 50)
+
+tot50_correlation_results = totals_geochem_filtered %>%
+  group_by(site) %>%
+  group_modify(~ calculate_correlation(.x)) %>%
+  ungroup()
+
+print(tot50_correlation_results)
+
+#write.csv(tot50_correlation_results, paste0(rootdir, "/totals50_correlation_results.csv"), row.names = FALSE)
+```
+
+```{r pathways - all depths}
+correlation_results_pathways = pathway_geochem %>%
+  group_by(pathway, site) %>%
+  group_modify(~ calculate_correlation(.x)) %>%
+  ungroup()
+
+print(correlation_results_pathways)
+
+#write.csv(correlation_results_pathways, paste0(rootdir, "/pathway_correlation_results.csv"), row.names = FALSE)
+```
+
+```{r pathways - excluding 50m}
+pathway_geochem_filtered = pathway_geochem %>% filter(depth != 50)
+
+correlation_results_pathways50 = pathway_geochem_filtered %>%
+  group_by(pathway, site) %>%
+  group_modify(~ calculate_correlation(.x)) %>%
+  ungroup()
+
+print(correlation_results_pathways50)
+
+#write.csv(correlation_results_pathways50, paste0(rootdir, "/pathway50_correlation_results.csv"), row.names = FALSE)
+```
+
+#Welch's One Way ANOVA for meso v bathy
+```{r define realms}
+bathy = c("2000", "3000", "4000")
+epi = c("50", "150")
+meso = c("500", "1000")
+```
+
+```{r total}
+totals_geochem_2 = totals_geochem %>% mutate(realm = case_when(
+    depth %in% epi   ~ "epi",
+    depth %in% meso  ~ "meso",
+    depth %in% bathy ~ "bathy",
+  ))
+
+totals_geochem_2_filtered = totals_geochem_2 %>% filter(realm %in% c("bathy", "meso"))
+
+anova_data = totals_geochem_2_filtered %>%
+  filter(!is.na(realm)) %>%
+  mutate(realm = as.factor(realm))
+
+normcov_anova = oneway.test(auto_normcov ~ realm, data = anova_data, var.equal = FALSE)
+summary(normcov_anova)
+print(normcov_anova)
+
+#which one is higher
+anova_data %>%
+  group_by(realm) %>%
+  summarise(
+    Mean_Normcov = mean(auto_normcov, na.rm = TRUE),
+    Sample_Size = n()
+  )
+```
+
+```{r pathways}
+pathway_geochem_2 = pathway_geochem %>% mutate(realm = case_when(
+    depth %in% epi   ~ "epi",
+    depth %in% meso  ~ "meso",
+    depth %in% bathy ~ "bathy",
+  ))
+
+pathway_geochem_2_filtered = pathway_geochem_2 %>% filter(realm %in% c("bathy", "meso"))
+
+pathways = unique(pathway_geochem_2_filtered$pathway)
+anova_data = pathway_geochem_2_filtered %>%
+  mutate(realm = as.factor(realm))
+
+pathway_results = data.frame()
+
+for (pat in pathways) {
+  pat_data = anova_data %>% filter(pathway == pat)
+  if (length(unique(pat_data$realm)) == 2) {
+    t_test = try(t.test(auto_normcov ~ realm, data = pat_data, var.equal = FALSE))
+    if (!inherits(t_test, "try-error")) {
+      means = pat_data %>%
+        group_by(realm) %>%
+        summarise(mean_value = mean(auto_normcov, na.rm = TRUE), .groups = "drop")
+      
+      realm_names = means$realm
+      realm_means = means$mean_value
+      
+      pathway_results = rbind(pathway_results, data.frame(
+        Pathway = pat,
+        Group1 = realm_names[1],
+        Group1_Mean = realm_means[1],
+        Group2 = realm_names[2],
+        Group2_Mean = realm_means[2],
+        T_Statistic = t_test$statistic,
+        P_Value = t_test$p.value,
+        stringsAsFactors = FALSE
+      ))
+    }
+  }
+}
+
+pathway_results = pathway_results %>%
+  mutate(Adjusted_P_Value = p.adjust(P_Value, method = "bonferroni")) %>% 
+  arrange(P_Value)
+
+pathway_results
+```
+
+#Significant Results
+Pearson's Correlation test with p value Bonferonni correction
+  •	Correlations assessed within each site
+    o 	Total abundance – all depths, all sites
+      	OC6, fluorescence (0.97, 0.0012)
+    o	Total abundance – no 50m, all sites
+      	Nothing
+    o	Pathway abundance – all depths, all sites
+      	OC6: CBB, fluorescence (0.98, 0.0018)
+    o	Pathway abundance – no 50m, all sites
+      	OC6: rTCA, nitrate (-0.96, 0.015)
+      	OC5: rTCA, nitrate (-0.98, 0.017)
+Welch’s one way anova test (doesn’t assume equal variance or sample size across groups) *bathypelagic vs mesopelagic only – all ignore 50m and 150m
+  •	Total abundance, all sites
+    o	P value: 0.00476, higher in mesopelagic
+  •	Pathway abundance, all sites
+    o	CBB, p-value: 0.0013. higher in mesopelagic
