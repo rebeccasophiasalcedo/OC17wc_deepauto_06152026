@@ -12,11 +12,11 @@ OC17_genewise_analysis_06152026_public.rmd
 OC17_geochemistry_cor_07062026_public.rmd
   Uses the relative abundances generated in OC17_genewise_analysis_06152026_public.rmd to assess for statistically significant correlations 
   between gene abundance and geochemical parameters of the water column. Uses arandia-gorostidi_etal_isme_supptables_urea_tableS1.csv and 
-  produces table S2, 3, 4, and 5 in manuscript. 
+  produces table S3, 4, 5, and 6 in manuscript. 
     
 OC17_refinedMAG_abundance_heatmap_07062026_public.Rmd
   Displays the relative abundance of each genome included in the study throughout the water column, grouped by taxonomic phyla and which
-  pathway they encode. produces figure S5 and uses supplementary tables S7 and S9. 
+  pathway they encode. produces figure S5 and uses supplementary tables S7 and S10. 
     
 OC17_refinedMAG_annotation_06152026_public.rmd
   Outlines the processing of refined genomes to generate annotations, taxonomic ID, and relative abundance. produces 
@@ -47,7 +47,7 @@ OC17_refinedMAG_tax_abundance_fig2_06152026_public.Rmd
 
 OC17_refinedMAG_tax_abundance_figS3_06152026_public.rmd
   Similar to code in OC17_refinedMAG_tax_abundance_fig2_06152026_public.Rmd but assesses all phyla at the family level classification. Uses 
-  table S6, S9, and catabolism_MAGs_06152026.csv to produce figure S3.
+  table S7, S10, and catabolism_MAGs_06152026.csv to produce figure S3.
 
 OC17_contigs_v_assembly_mapping_plotting_06152026.rmd
   Plots the data in 06152026_genomevassembly_mapping_info.tsv to generate figure S1. 
