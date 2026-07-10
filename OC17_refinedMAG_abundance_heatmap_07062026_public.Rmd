@@ -28,18 +28,7 @@ df$X = NULL
 
 ```{r}
 #add in correct coverM information
-metadata_cols = c(
-  "genome",
-  "site_generated",
-  "depth_generated",
-  "classification",
-  "completeness",
-  "contamination",
-  "pathway",
-  "previously_reported",
-  "catabolism_found",
-  "label"
-)
+metadata_cols = c("genome", "site_generated", "depth_generated", "classification", "completeness", "contamination", "pathway", "previously_reported", "catabolism_found", "label")
 
 abund = select(df, c(metadata_cols))
 
@@ -70,15 +59,13 @@ length(unique(abund_df$genome))
 abund_long = abund_df %>%
   mutate(
     Sample = str_trim(as.character(Sample)),
-    # depth
-    parsed_depth = as.numeric(str_extract(Sample, "\\d+$")),
-    # site
-    parsed_site = str_extract(Sample, "^[^_]+")
+    depth = as.numeric(str_extract(Sample, "\\d+$")),
+    site = str_extract(Sample, "^[^_]+")
   )
 
 #arrange depths for plotting
 sample_order = abund_long %>%
-  arrange(parsed_depth, parsed_site) %>%
+  arrange(depth, site) %>%
   pull(Sample) %>%
   unique()
 
@@ -109,54 +96,17 @@ abund_long = abund_long %>%
 
 ```{r}
 #plot heatmap
-p_heatmap = ggplot(
-  abund_long,
-  aes(
-    x = genome,
-    y = sample,
-    fill = relative
-  )
-) +
+p_heatmap = ggplot(abund_long, aes(x = genome, y = sample, fill = relative)) +
   geom_tile() +
-  
   scale_y_discrete(limits = rev) +
-  
-  facet_grid(
-    ~ label,
-    scales = "free_x",
-    space = "free_x"
-  ) +
-  
-scale_fill_gradientn(
-  colours = c(
-    "gray95",
-    "grey85",
-    "grey65",
-    "grey40",
-    "grey30"
-  ),
-  na.value = "white"
-) +
-  
+  facet_grid(~ label, scales = "free_x", space = "free_x") +
+  scale_fill_gradientn(colours = c("gray95", "grey85", "grey65", "grey40", "grey30"), na.value = "white") +
   theme_bw() +
-  
-  theme(
-    axis.text.x = element_text(
-      angle = 90,
-      hjust = 1,
-      vjust = 0.5,
-      size = 6
-    ),
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5, size = 6),
     strip.background = element_blank(),
     panel.spacing.x = unit(0.1, "cm"),
-    strip.text.x = element_blank()
-  ) +
-  
-  labs(
-    x = "MAG",
-    y = "Sample (Depth - Site)",
-    fill = "Relative Abundance (%)"
-  )
+    strip.text.x = element_blank()) +
+  labs(x = "MAG", y = "Sample (Depth - Site)", fill = "Relative Abundance (%)")
 
 p_heatmap
 ```
@@ -166,39 +116,19 @@ p_heatmap
 pathway_df = abund_long %>%
   distinct(genome, pathway, label)
 
-p_pathway = ggplot(
-  pathway_df,
-  aes(
-    x = genome,
-    y = 1,
-    fill = pathway
-  )
-) +
+p_pathway = ggplot(pathway_df, aes(x = genome, y = 1, fill = pathway)) +
   geom_tile() +
-  facet_grid(
-    ~ label,
-    scales = "free_x",
-    space = "free_x"
-  ) +
-    scale_fill_manual(
-    values = c(
+  facet_grid(~ label, scales = "free_x", space = "free_x") +
+  scale_fill_manual(values = c(
       "3HP bi-cycle"      = "#CC79A7",
       "3HP/4HB"           = "#E69F00",
       "CBB"               = "#56B4E9",
       "DC/4HB"            = "#660033",
       "3HP bi-cycle and CBB" = "#A1B5A3"
-    )
-  ) +
+    )) +
   theme_void() +
-  theme(
-    legend.position = "right",
-    strip.text.x = element_text(
-    angle = 90,
-    hjust = 0.5,
-    vjust = 0.5
-  ),
-    axis.text.x.bottom = element_blank()
-  )
+  theme(legend.position = "right", strip.text.x = element_text(angle = 90, hjust = 0.5, vjust = 0.5),
+    axis.text.x.bottom = element_blank())
 p_pathway
 
 ```
