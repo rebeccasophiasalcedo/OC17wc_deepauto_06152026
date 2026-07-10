@@ -90,100 +90,28 @@ unique_genomes <- setdiff(k00958_genomes$genome, k00394_genomes$genome)
 ```
 
 ```{r}
-phylum_plot <- ggplot(
-  sulfite_data,
-  aes(
-    x = KO,
-    y = genome,
-    fill = module,
-    alpha = present,
-    width = 1,
-    height = 1
-  )
-) +
+phylum_plot <- ggplot(sulfite_data, aes(x = KO, y = genome, fill = module, alpha = present, width = 1, height = 1)) +
   geom_tile(colour = "white", linewidth = 0.2) +
-  facet_grid(
-    rows = vars(label),
-    cols = vars(header),
-    scales = "free",
-    space = "free_x",
-    labeller = label_wrap_gen(width = 10)
-  ) +
+  facet_grid(rows = vars(label), cols = vars(header), scales = "free", space = "free_x", labeller = label_wrap_gen(width = 10)) +
   scale_alpha_identity(guide = "none") +
-  labs(
-    x = "KO Number",
-    y = "Putative Autotrophic MAGs"
-  ) +
+  labs(x = "KO Number", y = "Putative Autotrophic MAGs") +
   theme_bw(base_size = 24) +
-  theme(
-    panel.grid = element_blank(),
-
-    axis.text.x = element_text(
-      angle = 90,
-      vjust = 0.5,
-      hjust = 1,
-      size = 24
-    ),
-    axis.text.y = element_text(
-      size = 18
-    ),
-
-    axis.title.x = element_text(
-      size = 34,
-      face = "bold",
-      margin = margin(t = 15)
-    ),
-    axis.title.y = element_text(
-      size = 34,
-      face = "bold",
-      margin = margin(r = 15)
-    ),
-
+  theme(panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 24),
+    axis.text.y = element_text(size = 18),
+    axis.title.x = element_text(size = 34, face = "bold", margin = margin(t = 15)),
+    axis.title.y = element_text(size = 34, face = "bold", margin = margin(r = 15)),
     axis.ticks.x = element_blank(),
     axis.ticks.y = element_blank(),
-
-    strip.background = element_rect(
-      fill = "white",
-      colour = "black",
-      linewidth = 0.5
-    ),
-    strip.text = element_text(
-      size = 28,
-      face = "bold"
-    ),
-    strip.text.y.left = element_text(
-      angle = 0,
-      size = 28,
-      face = "bold"
-    ),
-
+    strip.background = element_rect(fill = "white", colour = "black", linewidth = 0.5),
+    strip.text = element_text(size = 28, face = "bold"),
+    strip.text.y.left = element_text(angle = 0, size = 28, face = "bold"),
     legend.position = "bottom",
-    legend.title = element_text(
-      size = 24,
-      face = "bold"
-    ),
-    legend.text = element_text(
-      size = 22
-    ),
+    legend.title = element_text(size = 24, face = "bold"),
+    legend.text = element_text(size = 22),
+    panel.spacing = unit(0.8, "lines")) +
+  guides(shape = guide_legend(override.aes = list(size = 4)), color = guide_legend(override.aes = list(size = 4)))
 
-    panel.spacing = unit(0.8, "lines")
-  ) +
-  guides(
-    shape = guide_legend(
-      override.aes = list(size = 4)
-    ),
-    color = guide_legend(
-      override.aes = list(size = 4)
-    )
-  )
-
-ggsave(
-  paste0(rootdir,
-         "refined_analysis/refined_figures/06152026/refined_sulfite_06152026.pdf"),
-  plot = phylum_plot,
-  width = 26,
-  height = 30,
-  units = "in"
-)
+ggsave(paste0(rootdir, "refined_analysis/refined_figures/06152026/refined_sulfite_06152026.pdf"), plot = phylum_plot, width = 26, height = 30, units = "in")
 ```
 
