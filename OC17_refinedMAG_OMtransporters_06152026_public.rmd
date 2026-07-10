@@ -41,7 +41,7 @@ filenames = list.files(path = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_ba
 setwd("/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/refined_analysis/refined_kofamscan/csv_processed/")
 
 for (f in filenames){
-  genome<-read_csv(f, col_names = TRUE)
+  genome=read_csv(f, col_names = TRUE)
   genome = as.data.table(genome$KO)
   genome$present = 1
   genome = genome %>%
@@ -61,7 +61,7 @@ merge each genomes df's together into one giant matrix of gene presence/absence 
 #get all data frames in list
 df_list = mget(ls(pattern = "genome_O"))
 #clean up the names so its just the bin ID
-names(df_list) <- sub("\\_processed.csv$", "", names(df_list))
+names(df_list) = sub("\\_processed.csv$", "", names(df_list))
 #merge all the dataframes together
 a = do.call("cbind", df_list)
 
@@ -69,7 +69,7 @@ colnames(a)
 #clean up df by renaming some files and dropping duplicate columns
 a = a %>%
     rename("KO" = "genome_OC2_150m_MAG_100.fa.gene_id")
-ab <- a %>% select(-contains(".gene_id"))
+ab = a %>% select(-contains(".gene_id"))
 
 #reorder the KO columns so theyre in the same order for when you do cbind since that doesnt look for matches. had to do it this way since merge wasnt working (gave too many rows)
 DRAM_pathways = DRAM_pathways[order(DRAM_pathways$gene_id,decreasing=TRUE),]
@@ -77,8 +77,8 @@ ab = ab[order(ab$KO,decreasing=TRUE),]
 ab = cbind(ab, DRAM_pathways)
 
 #dropping duplicate rows, renaming column headers, and replacing NAs with zeros
-ab <- ab %>% select(-contains("gene_id"))
-ab[is.na(ab)] <- 0
+ab = ab %>% select(-contains("gene_id"))
+ab[is.na(ab)] = 0
 colnames(ab) = gsub("[.]R\\d+m\\d+m*[.]\\d+", "", colnames(ab))
 ```
 
@@ -88,12 +88,12 @@ manipulate presence/absence dataframe above to long form so I can add in the tax
 ab_long = ab %>% pivot_longer(cols = starts_with("genome_"), names_to = "genome", values_to = "present")
 #remove the genome_ part so that it matches the data in the drep_tax df that I need to merge it with
 ab_long$genome = sub("genome_", "", ab_long$genome)
-ab_long$genome <- sub("\\.fa.*", "", ab_long$genome)
+ab_long$genome = sub("\\.fa.*", "", ab_long$genome)
 
 #modify gtdb bin names to match new refined bin names
 ab_tax = left_join(ab_long, APEM_info, by = "genome")
 
-ab_tax <- ab_tax %>%
+ab_tax = ab_tax %>%
   mutate(genome = str_replace(genome, "^(.*?)\\.fa\\.\\1\\.fa$", "\\1"))
 
 #now use that list to pull out the mags of interest from the whole dataset
@@ -144,26 +144,27 @@ auto_MAGs_simple = auto_MAGs_simple[-(which(auto_MAGs_simple$KO == "K00441")),]
 #percentage of MAGs with ABC tranporters associated with organic carbon
 
 #Oligosaccaride
-#Monosaccharide
 Oligosaccaride = filter(auto_MAGs_simple, auto_MAGs_simple$module == "Oligosaccaride, polyol, lipid transporter")
 Oligosaccaride_MAGs = aggregate(present ~ genome, data=Oligosaccaride, FUN=sum)
 #29 genomes
 
+#Monosaccharide
 Monosaccharide = filter(auto_MAGs_simple, auto_MAGs_simple$module == "Monosaccharide transporter")
 Monosaccharide_MAGs = aggregate(present ~ genome, data=Monosaccharide, FUN=sum)
 #35 genomes
 
-shared_genomes <- intersect(Monosaccharide_MAGs$genome, Oligosaccaride_MAGs$genome)
+shared_genomes = intersect(Monosaccharide_MAGs$genome, Oligosaccaride_MAGs$genome)
 #24 have both
 
-merged_df <- merge(Monosaccharide_MAGs, Oligosaccaride_MAGs, by = "genome", all = TRUE)
+merged_df = merge(Monosaccharide_MAGs, Oligosaccaride_MAGs, by = "genome", all = TRUE)
 
-# Step 2: Add columns indicating presence in each dataframe
-merged_df$mono <- !is.na(merged_df$present.x) # TRUE if present in df1
-merged_df$oligo <- !is.na(merged_df$present.y) # TRUE if present in df2
+# true for mono
+merged_df$mono = !is.na(merged_df$present.x)
+# true oligo oligo
+merged_df$oligo = !is.na(merged_df$present.y)
 
-# Step 3: Collapse to unique genomes and retain source information
-collapsed_df <- merged_df %>%
+#unique genomes for those at least 1
+collapsed_df = merged_df %>%
   select(genome, mono, oligo)
 
 #40 have at least one
@@ -183,19 +184,21 @@ AA_MAGs = aggregate(present ~ genome, data=AA, FUN=sum)
 peptide = filter(auto_MAGs_simple, auto_MAGs_simple$module == "Peptide and nickel transporter")
 peptide_MAGs = aggregate(present ~ genome, data=peptide, FUN=sum)
 
-shared_genomes <- Reduce(intersect, list(peptide_MAGs$genome, AA_MAGs$genome, BCAA_MAGs$genome))
+shared_genomes = Reduce(intersect, list(peptide_MAGs$genome, AA_MAGs$genome, BCAA_MAGs$genome))
 #29 have all three
 
-merged_df <- merge(AA_MAGs, BCAA_MAGs, by = "genome", all = TRUE)
+merged_df = merge(AA_MAGs, BCAA_MAGs, by = "genome", all = TRUE)
 merged_df = merge(merged_df, peptide_MAGs, by = "genome", all = TRUE)
 
-# Step 2: Add columns indicating presence in each dataframe
-merged_df$AA <- !is.na(merged_df$present.x) # TRUE if present in df1
-merged_df$BCAA <- !is.na(merged_df$present.y) # TRUE if present in df2
-merged_df$peptide <- !is.na(merged_df$present) # TRUE if present in df2
+# true for AA
+merged_df$AA = !is.na(merged_df$present.x) 
+# true for BCAA
+merged_df$BCAA = !is.na(merged_df$present.y) 
+# true for peptide
+merged_df$peptide = !is.na(merged_df$present) 
 
-# Step 3: Collapse to unique genomes and retain source information
-collapsed_df <- merged_df %>%
+# unique genomes for those with at least 1
+collapsed_df = merged_df %>%
   select(genome, AA, BCAA, peptide)
 
 #125 have at least one
@@ -211,6 +214,7 @@ ABC = unique(AA_MAGs$genome)
 x = setdiff(genomes, ABC)
 print(x)
 #OC3_500m_MAG_167
+#went and looked up tax
 ##d__Bacteria;p__Actinobacteriota;c__Acidimicrobiia;o__Acidimicrobiales;f__MedAcidi-G1;g__UBA9410;s__UBA9410 sp014237715
 ```
 
@@ -222,129 +226,33 @@ glycine_MAGs = aggregate(present ~ genome, data=glycine, FUN=sum)
 ```
 
 ```{r}
-phylum_plot <- ggplot(
-  auto_MAGs_simple,
-  aes(
-    x = KO,
-    y = genome,
-    fill = module,
-    alpha = present,
-    width = 1,
-    height = 1
-  )
-) +
+phylum_plot = ggplot(auto_MAGs_simple, aes(x = KO, y = genome, fill = module, alpha = present, width = 1, height = 1)) +
   geom_tile(colour = NA, linewidth = 0.1) +
-
-  facet_grid(
-    rows = vars(label),
-    cols = vars(header),
-    scales = "free",
-    space = "free",
-    labeller = label_wrap_gen(width = 10)
-  ) +
-
+  facet_grid(rows = vars(label), cols = vars(header), scales = "free", space = "free", labeller = label_wrap_gen(width = 10)) +
   scale_alpha_identity(guide = "none") +
-
-  labs(
-    x = "KO Number",
-    y = "Putative Autotrophic MAGs"
-  ) +
-
+  labs(x = "KO Number", y = "Putatively Autotrophic MAGs") +
   scale_y_discrete(drop = TRUE) +
-
   theme_bw(base_size = 20) +
-  theme(
-    panel.grid = element_blank(),
-
-    # X axis
-    axis.text.x = element_text(
-      angle = 90,
-      vjust = 0.5,
-      hjust = 1,
-      size = 24
-    ),
-
+  theme(panel.grid = element_blank(),
+    axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1, size = 24),
     axis.text.y = element_blank(),
-
     axis.ticks.x = element_blank(),
     axis.ticks.y = element_blank(),
-
-    axis.title.x = element_text(
-      size = 30,
-      face = "bold",
-      margin = margin(t = 15)
-    ),
-
-    axis.title.y = element_text(
-      size = 30,
-      face = "bold",
-      margin = margin(r = 15)
-    ),
-
-    strip.background = element_rect(
-  fill = "white",
-  colour = "black",
-  linewidth = 0.4
-),
-
-    strip.text = element_text(
-      size = 22,
-      face = "bold",
-      margin = margin(6, 6, 6, 6)
-    ),
-    
-    strip.text.y.left = element_text(
-      angle = 0,
-      size = 22,
-      face = "bold",
-      hjust = 0,
-      vjust = 0.5,
-      margin = margin(r = 12)
-    ),
-    
-    strip.text.y.right = element_text(
-      angle = 0,
-      size = 22,
-      face = "bold",
-      hjust = 0,
-      vjust = 0.5,
-      margin = margin(l = 12)
-    ),
-    
+    axis.title.x = element_text(size = 30,face = "bold",margin = margin(t = 15)),
+    axis.title.y = element_text(size = 30,face = "bold",margin = margin(r = 15)),
+    strip.background = element_rect(fill = "white",colour = "black",linewidth = 0.4),
+    strip.text = element_text(size = 22,face = "bold",margin = margin(6, 6, 6, 6)),
+    strip.text.y.left = element_text(angle = 0,size = 22,face = "bold",hjust = 0,vjust = 0.5,margin = margin(r = 12)),
+    strip.text.y.right = element_text(angle = 0,size = 22,face = "bold",hjust = 0,vjust = 0.5,margin = margin(l = 12)),
     strip.placement = "outside",
     strip.clip = "off",
-
     panel.spacing = unit(1, "lines"),
-
-    panel.border = element_rect(
-      colour = "black",
-      linewidth = 0.4
-    ),
-
+    panel.border = element_rect(colour = "black",linewidth = 0.4),
     legend.position = "bottom",
-
-    legend.title = element_text(
-      size = 22,
-      face = "bold"
-    ),
-
-    legend.text = element_text(
-      size = 20
-    ),
-
+    legend.title = element_text(size = 22,face = "bold"),
+    legend.text = element_text(size = 20),
     plot.margin = margin(10, 20, 10, 20)
   )
 
-ggsave(
-  paste0(
-    rootdir,
-    "refined_analysis/refined_figures/06152026/refined_OMtransporters_06152026.pdf"
-  ),
-  plot = phylum_plot,
-  width = 50,
-  height = 50,
-  units = "in",
-  limitsize = FALSE
-)
+ggsave(paste0(rootdir,"refined_analysis/refined_figures/06152026/refined_OMtransporters_06152026.pdf"), plot = phylum_plot, width = 50, height = 50, units = "in", limitsize = FALSE)
 ```
-
