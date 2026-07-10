@@ -99,7 +99,7 @@ for (f in kegg_raw){
   score = auto_site_besthit %>% arrange(desc(score))
   score = score %>% arrange(KO)
   figure_name = paste("../figures/bitscore", f, ".pdf", sep = "_") 
-  hline <- data.frame(KO = unique(score$KO), Z = unique(score$threshold))
+  hline = data.frame(KO = unique(score$KO), Z = unique(score$threshold))
   plot = ggplot(data = score, aes(x=reorder(gene, -score), y = score)) + geom_point() + theme(axis.text.x = element_blank()) + xlab("Gene") + ylab("Bit Score") + facet_wrap(~KO, ncol = 1, nrow = 25, scales = "free_x") + geom_abline(data = hline, aes(intercept = Z*0.8, slope = 0)) + ggtitle("80% default threshold")
   ggsave(figure_name, plot = plot, width = 11, height = 34, units = "in")
 }
@@ -108,23 +108,23 @@ for (f in kegg_raw){
 # Mapping
 
 ```{r rename assemblies}
-dir <- paste0(seqdir, "/assemblies")
+assembly_dir = paste0(seqdir, "/assemblies")
 
-files <- list.files(
-  path = dir,
+files = list.files(
+  path = assembly_dir,
   pattern = "^OC1703_.*\\.contigs\\.fa$",
   full.names = FALSE
 )
 
-new_names <- sub(
+new_names = sub(
   "^OC1703_([0-9]+m)_([0-9]+m)_sens_min1000\\.contigs\\.fa$",
   "\\1\\2_contigs_min1000.fa",
   files
 )
 
 file.rename(
-  from = file.path(dir, files),
-  to   = file.path(dir, new_names)
+  from = file.path(assembly_dir, files),
+  to   = file.path(assembly_dir, new_names)
 )
 ```
 
@@ -171,10 +171,10 @@ file.show(paste0(rootdir,"sh_scripts/bowtie_index.sh"))
 ```
 
 ```{r edit prodigal call names to remove gdrive copy}
-dir = paste0(rootdir, "/prodigal_calls/fna")
+prodigal_dir = paste0(rootdir, "/prodigal_calls/fna")
 
 files = list.files(
-  path = dir,
+  path = prodigal_dir,
   pattern = "^Copy of ",
   full.names = FALSE
 )
@@ -184,8 +184,8 @@ new_names = sub("^Copy of ", "", files)
 data.frame(old = files, new = new_names)  # preview
 
 file.rename(
-  from = file.path(dir, files),
-  to   = file.path(dir, new_names)
+  from = file.path(prodigal_dir, files),
+  to   = file.path(prodigal_dir, new_names)
 )
 ```
 
@@ -249,10 +249,7 @@ for(i in sample_list) {
   kegg = read_csv(paste(rootdir, 'kofamscan_csv/besthit_', i, "_KEGGIDs.csv", sep = ""), col_names = TRUE)
   kegg_cov = merge(kegg, inStrain, by = "gene")
   file_name = paste(rootdir, "R_output/", i, "_gene_coverage.csv", sep = "")      
-  write.csv(kegg_cov, file_name)
-  
-  print("finished reading in files")
-  
+  write.csv(kegg_cov, file_name)  
   auto_kegg_cov = subset(kegg_cov, (KO %in% KOs))
   for (x in KOs) {
     min_length = (with(min_gene_lengths, mean_nt_length[KO == x]))*0.70
@@ -269,15 +266,9 @@ for(i in sample_list) {
   assign(paste("bitscore_pass_", x, sep = ""), pass)
   }
   
-  auto_filtered <- rbind(bitscore_pass_K00194, bitscore_pass_K00197, bitscore_pass_K00198, bitscore_pass_K00855, bitscore_pass_K01601, bitscore_pass_K01602, bitscore_pass_K03553, bitscore_pass_K08691, bitscore_pass_K09709, bitscore_pass_K14466, bitscore_pass_K14467, bitscore_pass_K14468, bitscore_pass_K14469, bitscore_pass_K14470, bitscore_pass_K15016, bitscore_pass_K15017, bitscore_pass_K15023, bitscore_pass_K15039, bitscore_pass_K15052, bitscore_pass_K15230, bitscore_pass_K15231, bitscore_pass_K15232, bitscore_pass_K15233, bitscore_pass_K15234, bitscore_pass_K18861, bitscore_pass_K14138, bitscore_pass_K02982, bitscore_pass_K03076, bitscore_pass_K01889)
-  
-  print("finished quality filtering")
-  
+  auto_filtered <- rbind(bitscore_pass_K00194, bitscore_pass_K00197, bitscore_pass_K00198, bitscore_pass_K00855, bitscore_pass_K01601, bitscore_pass_K01602, bitscore_pass_K03553, bitscore_pass_K08691, bitscore_pass_K09709, bitscore_pass_K14466, bitscore_pass_K14467, bitscore_pass_K14468, bitscore_pass_K14469, bitscore_pass_K14470, bitscore_pass_K15016, bitscore_pass_K15017, bitscore_pass_K15023, bitscore_pass_K15039, bitscore_pass_K15052, bitscore_pass_K15230, bitscore_pass_K15231, bitscore_pass_K15232, bitscore_pass_K15233, bitscore_pass_K15234, bitscore_pass_K18861, bitscore_pass_K14138, bitscore_pass_K02982, bitscore_pass_K03076, bitscore_pass_K01889)  
     # Remove rows where scaffold is in euk_scaf_df
-  auto_filtered <- auto_filtered[!auto_filtered$scaffold %in% euk_scaf_df$scaffold, ]
- 
-  print("eukaryotic sequences removed")
-  
+  auto_filtered <- auto_filtered[!auto_filtered$scaffold %in% euk_scaf_df$scaffold, ]  
   auto_filtered  = auto_filtered  %>%
   mutate(pathway = case_when(
     endsWith(KO, "00855") ~ "CBB",
@@ -333,10 +324,7 @@ for(i in sample_list) {
   auto_filtered$site = site
   auto_filtered$depth = depth
   auto_file_name = paste(rootdir, "R_output/gene_coverage/", i, "_autogene_coverage.csv", sep = "")      
-  write_csv(auto_filtered, auto_file_name)
-  
-  print("indiivdual gene coverage file saved")
-  
+  write_csv(auto_filtered, auto_file_name)  
   auto_filtered_counts = auto_filtered %>% count(auto_filtered$KO)
   colnames(auto_filtered_counts)[1] <- "KO"
   tot_cov_by_KO = auto_filtered %>% group_by(auto_filtered$KO) %>% summarise_at(vars(coverage), funs(sum, min, max))
@@ -385,22 +373,16 @@ for(i in sample_list) {
   
   tot_cov_by_KO$sum = as.numeric(tot_cov_by_KO$sum)
   KO_file_name = paste(rootdir, "R_output/KO_coverage/", i, "_autoKO_coverage.csv", sep = "")      
-  write_csv(tot_cov_by_KO, KO_file_name)
-  
-  print("autotrophic KO coverage file saved")
-  
+  write_csv(tot_cov_by_KO, KO_file_name)  
   tot_cov_by_KO_no_cbbS = subset(tot_cov_by_KO, tot_cov_by_KO$KO!="K01602")
   tot_cov_by_pathway = tot_cov_by_KO_no_cbbS %>% group_by(tot_cov_by_KO_no_cbbS$pathway) %>% summarise_at(vars(sum), funs(mean, min, max))
-  colnames(tot_cov_by_pathway)[1] <- "pathway"
-  print("rename successful")
+  colnames(tot_cov_by_pathway)[1] = "pathway"
   singlecopy_meancov = tot_cov_by_pathway$mean[tot_cov_by_pathway$pathway=="single copy"]
   tot_cov_by_pathway$normalized_cov = tot_cov_by_pathway$mean/singlecopy_meancov
   tot_cov_by_pathway$metabolism = "chemoautotrophy"
   tot_cov_by_pathway[8, 6] = "single copy"
   pathway_file_name = paste(rootdir, "R_output/pathway_coverage/", i, "_autopath_coverage.csv", sep = "")      
   write_csv(tot_cov_by_pathway, pathway_file_name)
-  print("pathway coverage file created")
-  print("successful loop")
 }
 
 
@@ -418,17 +400,17 @@ write_csv(tableS2, paste(rootdir, "R_output/supptable_genes_06152026.csv", sep =
 
 ```
 
-extract scaffold sequences for contig level taxonomy
+extract scaffold (contig) sequences for contig level taxonomy
 ```{r}
 tableS2 = read_csv(paste(rootdir, "R_output/supptable_genes_06152026.csv", sep = ""))
 
-cmdir <- function(path) {
+cmdir = function(path) {
   if (!dir.exists(path)) {
     dir.create(path, recursive = TRUE)
   }
 }
 
-sbatch <- function(name, cpus, cmd) {
+sbatch = function(name, cpus, cmd) {
   sprintf("sbatch -J %s -p serc -t 160:00:00 -c %d --mem %dG --wrap '%s'", 
           name, cpus, cpus*8, cmd)
 }
@@ -436,8 +418,8 @@ sbatch <- function(name, cpus, cmd) {
 contigtaxdir <- "/scratch/users/rsalcedo/OC17wc_deepauto/gene_based/contig_taxonomy"
 cmdir(file.path(contigtaxdir, "scaffolds"))
 
-extracted <- tableS2
-extracted <- extracted %>%
+extracted = tableS2
+extracted = extracted %>%
   mutate(sample = str_replace(scaffold, ".*_(\\d+m)_(\\d+m)_.*", "\\1\\2"))
 
 
@@ -446,32 +428,20 @@ print(head(extracted))
 unique_samples <- unique(extracted$sample)
 
 for (sample in unique_samples) {
-  # Find assembly
-  path <- file.path(seqdir, "assemblies", sprintf("%s_contigs_min1000.fa", sample))
-  print(sprintf("Processing file: %s", path))
-  
-  if (!file.exists(path)) {
-    warning(sprintf("File does not exist: %s", path))
-    next
-  }
+  path = file.path(seqdir, "assemblies", sprintf("%s_contigs_min1000.fa", sample))
 
-  dna_records <- readDNAStringSet(path)
-  names(dna_records) <- sapply(names(dna_records), function(x) str_split(x, " ")[[1]][1])
-  tmp <- as.list(as.character(dna_records))
+  dna_records = readDNAStringSet(path)
+  names(dna_records) = sapply(names(dna_records), function(x) str_split(x, " ")[[1]][1])
+  tmp = as.list(as.character(dna_records))
   
-  print(sprintf("Scaffolds in assembly for sample %s: %s", sample, paste(names(tmp), collapse = ", ")))
-  
-  sample_data <- extracted %>% filter(sample == sample)
-  
-  print(sprintf("Scaffolds to extract for sample %s: %s", sample, paste(unique(sample_data$scaffold), collapse = ", ")))
-  
+  sample_data = extracted %>% filter(sample == sample)
+    
   for (scaffold in unique(sample_data$scaffold)) {
-    scaffold <- trimws(scaffold)  
+    scaffold = trimws(scaffold)  
     if (scaffold %in% names(tmp)) {
       writeLines(sprintf(">%s\n%s\n", scaffold, tmp[[scaffold]]), 
                  file.path(contigtaxdir, "scaffolds", paste0(scaffold, ".fna")))
     } else {
-      warning(sprintf("Scaffold %s not found in file %s", scaffold, path))
     }
   }
 }
@@ -482,16 +452,16 @@ for (sample in unique_samples) {
 Figure 1: coverage/abundance of autotrophic genes and autotrophic pathways
 read in data
 ```{r message=FALSE}
-list_KO_files <- list.files(path = paste(rootdir, "R_output/KO_coverage/", sep = ""))
+list_KO_files = list.files(path = paste(rootdir, "R_output/KO_coverage/", sep = ""))
 list_KO_files
-list_pathway_files <- list.files(path = paste(rootdir, "R_output/pathway_coverage/", sep = ""))
+list_pathway_files = list.files(path = paste(rootdir, "R_output/pathway_coverage/", sep = ""))
 list_pathway_files
 
 setwd(paste(rootdir, "R_output/pathway_coverage/", sep = ""))
-pathway_df <- readr::read_csv(list_pathway_files, id = "file_name")
+pathway_df = readr::read_csv(list_pathway_files, id = "file_name")
 pathway_df
 setwd(paste(rootdir, "R_output/KO_coverage/", sep = ""))
-KO <- readr::read_csv(list_KO_files, id = "file_name")
+KO = readr::read_csv(list_KO_files, id = "file_name")
 KO
 ```
 clean up df's
@@ -549,17 +519,17 @@ pathway_df  = pathway_df  %>%
   ))
 pathway_df$file_name = NULL
 
-KO <- KO %>% 
+KO = KO %>% 
        dplyr::rename("sum_cov" = "sum")
-KO <- KO %>% 
+KO = KO %>% 
        dplyr::rename("min_cov" = "min")
-KO <- KO %>% 
+KO = KO %>% 
        dplyr::rename("max_cov" = "max")
-pathway_df <- pathway_df %>% 
+pathway_df = pathway_df %>% 
        dplyr::rename("mean_cov" = "mean")
-pathway_df <- pathway_df %>% 
+pathway_df = pathway_df %>% 
        dplyr::rename("min_cov" = "min")
-pathway_df <- pathway_df %>% 
+pathway_df = pathway_df %>% 
        dplyr::rename("max_cov" = "max")
 
 write.csv(file = paste(rootdir, "R_output/transect_pathwaydf.csv", sep = ""), x= pathway_df)
@@ -573,7 +543,7 @@ pathway_no_sc = subset(pathway_df, pathway_df$metabolism!="single copy")
 total relative abundance plot
 ```{r}
 totals_norm_cov = pathway_no_sc %>% group_by(site_m, depth_m) %>% summarize(sum(normalized_cov))
-totals_norm_cov <- totals_norm_cov %>% 
+totals_norm_cov = totals_norm_cov %>% 
        dplyr::rename("norm_cov" = "sum(normalized_cov)")
 
 totals_norm_cov[-(which(totals_norm_cov$depth_m == 50)),] %>%
@@ -589,8 +559,8 @@ totals_norm_cov = totals_norm_cov %>% mutate(site_m = ifelse(site_m == "4500", "
 
 label = paste(signif(totals_norm_cov$norm_cov, 2)*100,"%")
 
-supp.labs <- c("OC6", "OC5", "OC4", "OC3", "OC2")
-names(supp.labs) <- c("OC6", "OC5", "OC4", "OC3", "OC2")
+supp.labs = c("OC6", "OC5", "OC4", "OC3", "OC2")
+names(supp.labs) = c("OC6", "OC5", "OC4", "OC3", "OC2")
 
 total_plot = ggplot(data = totals_norm_cov) + 
   geom_point(aes(y=norm_cov*100, x=depth_m), size = 2.5) + 
@@ -617,115 +587,115 @@ pathway relative abundance plot
 ```{r}
 #4500m site
 pathways_4500m = subset(pathway_no_sc, pathway_no_sc$site_m=="4500")
-pathways_4500m  <- pathways_4500m %>% 
+pathways_4500m  = pathways_4500m %>% 
   group_by(depth_m) %>% 
   mutate(
     relative = normalized_cov/sum(normalized_cov)
   ) %>% 
   ungroup()
 
-depth_totals <- pathways_4500m %>%
+depth_totals = pathways_4500m %>%
     group_by(depth_m) %>%
     summarise(normalized_cov = sum(normalized_cov))
 
-pathways_4500m <- add_row(.data = pathways_4500m,
+pathways_4500m = add_row(.data = pathways_4500m,
         depth_totals) %>%
     arrange(depth_m)
 
-pathways_4500m$pathway[is.na(pathways_4500m$pathway)] <- "total"
-pathways_4500m$site_m[is.na(pathways_4500m$site_m)] <- "4500"
+pathways_4500m$pathway[is.na(pathways_4500m$pathway)] = "total"
+pathways_4500m$site_m[is.na(pathways_4500m$site_m)] = "4500"
 
 pathways_4500m = subset(pathways_4500m, pathways_4500m$pathway!="DC/4HB")
 pathways_4500m = subset(pathways_4500m, pathways_4500m$pathway!="3HP/4HB")
 
 #4000m site
 pathways_4000m = subset(pathway_no_sc, pathway_no_sc$site_m=="4000")
-pathways_4000m  <- pathways_4000m %>% 
+pathways_4000m  = pathways_4000m %>% 
   group_by(depth_m) %>% 
   mutate(
     relative = normalized_cov/sum(normalized_cov)
   ) %>% 
   ungroup()
 
-depth_totals <- pathways_4000m %>%
+depth_totals = pathways_4000m %>%
     group_by(depth_m) %>%
     summarise(normalized_cov = sum(normalized_cov))
 
-pathways_4000m <- add_row(.data = pathways_4000m,
+pathways_4000m = add_row(.data = pathways_4000m,
         depth_totals) %>%
     arrange(depth_m)
 
-pathways_4000m$pathway[is.na(pathways_4000m$pathway)] <- "total"
+pathways_4000m$pathway[is.na(pathways_4000m$pathway)] = "total"
 
 pathways_4000m = subset(pathways_4000m, pathways_4000m$pathway!="DC/4HB")
 pathways_4000m = subset(pathways_4000m, pathways_4000m$pathway!="3HP/4HB")
-pathways_4000m$site_m[is.na(pathways_4000m$site_m)] <- "4000"
+pathways_4000m$site_m[is.na(pathways_4000m$site_m)] = "4000"
 
 #3500m site
 pathways_3500m = subset(pathway_no_sc, pathway_no_sc$site_m=="3500")
-pathways_3500m  <- pathways_3500m %>% 
+pathways_3500m  = pathways_3500m %>% 
   group_by(depth_m) %>% 
   mutate(
     relative = normalized_cov/sum(normalized_cov)
   ) %>% 
   ungroup()
 
-depth_totals <- pathways_3500m %>%
+depth_totals = pathways_3500m %>%
     group_by(depth_m) %>%
     summarise(normalized_cov = sum(normalized_cov))
 
-pathways_3500m <- add_row(.data = pathways_3500m,
+pathways_3500m = add_row(.data = pathways_3500m,
         depth_totals) %>%
     arrange(depth_m)
 
-pathways_3500m$pathway[is.na(pathways_3500m$pathway)] <- "total"
-pathways_3500m$site_m[is.na(pathways_3500m$site_m)] <- "3500"
+pathways_3500m$pathway[is.na(pathways_3500m$pathway)] = "total"
+pathways_3500m$site_m[is.na(pathways_3500m$site_m)] = "3500"
 
 pathways_3500m = subset(pathways_3500m, pathways_3500m$pathway!="DC/4HB")
 pathways_3500m = subset(pathways_3500m, pathways_3500m$pathway!="3HP/4HB")
 
 #3000m site
 pathways_3000m = subset(pathway_no_sc, pathway_no_sc$site_m=="3000")
-pathways_3000m  <- pathways_3000m %>% 
+pathways_3000m  = pathways_3000m %>% 
   group_by(depth_m) %>% 
   mutate(
     relative = normalized_cov/sum(normalized_cov)
   ) %>% 
   ungroup()
 
-depth_totals <- pathways_3000m %>%
+depth_totals = pathways_3000m %>%
     group_by(depth_m) %>%
     summarise(normalized_cov = sum(normalized_cov))
 
-pathways_3000m <- add_row(.data = pathways_3000m,
+pathways_3000m = add_row(.data = pathways_3000m,
         depth_totals) %>%
     arrange(depth_m)
 
-pathways_3000m$pathway[is.na(pathways_3000m$pathway)] <- "total"
-pathways_3000m$site_m[is.na(pathways_3000m$site_m)] <- "3000"
+pathways_3000m$pathway[is.na(pathways_3000m$pathway)] = "total"
+pathways_3000m$site_m[is.na(pathways_3000m$site_m)] = "3000"
 
 pathways_3000m = subset(pathways_3000m, pathways_3000m$pathway!="DC/4HB")
 pathways_3000m = subset(pathways_3000m, pathways_3000m$pathway!="3HP/4HB")
 
 #500m site
 pathways_500m = subset(pathway_no_sc, pathway_no_sc$site_m=="500")
-pathways_500m  <- pathways_500m %>% 
+pathways_500m  = pathways_500m %>% 
   group_by(depth_m) %>% 
   mutate(
     relative = normalized_cov/sum(normalized_cov)
   ) %>% 
   ungroup()
 
-depth_totals <- pathways_500m %>%
+depth_totals = pathways_500m %>%
     group_by(depth_m) %>%
     summarise(normalized_cov = sum(normalized_cov))
 
-pathways_500m <- add_row(.data = pathways_500m,
+pathways_500m = add_row(.data = pathways_500m,
         depth_totals) %>%
     arrange(depth_m)
 
-pathways_500m$pathway[is.na(pathways_500m$pathway)] <- "total"
-pathways_500m$site_m[is.na(pathways_500m$site_m)] <- "500"
+pathways_500m$pathway[is.na(pathways_500m$pathway)] = "total"
+pathways_500m$site_m[is.na(pathways_500m$site_m)] = "500"
 
 pathways_500m = subset(pathways_500m, pathways_500m$pathway!="DC/4HB")
 pathways_500m = subset(pathways_500m, pathways_500m$pathway!="3HP/4HB")
@@ -741,7 +711,7 @@ all_sites %>% filter(depth_m > 50 & pathway == "total") %>% summarise(avg = mean
 ```
 
 ```{r}
-cbPalette <- c("#CC79A7", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00")
+cbPalette = c("#CC79A7", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00")
 
 p1=ggplot(data = pathways_4500m) + 
   geom_point(aes(y=relative*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
@@ -824,7 +794,7 @@ plot_final
 ```
 
 ```{r}
-cbPalette <- c("#CC79A7", "#E69F00", "#56B4E9", "#009E73", "#000000", "#F0E442")
+cbPalette = c("#CC79A7", "#E69F00", "#56B4E9", "#009E73", "#000000", "#F0E442")
 
 p1=ggplot(data = pathways_4500m) + 
   geom_point(aes(y=normalized_cov*100, x=depth_m, fill = pathway, colour = pathway), size = 4) + 
