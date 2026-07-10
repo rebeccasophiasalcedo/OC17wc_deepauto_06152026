@@ -34,7 +34,7 @@ bin_list = gsub("_contigs.fa", "", list.files(path = oldgenomedir))
 head(bin_list)
 #rename to match
 
-site_map <- c(
+site_map = c(
   "500"  = "OC2",
   "3000" = "OC3",
   "3500" = "OC4",
@@ -42,22 +42,14 @@ site_map <- c(
   "4500" = "OC6"
 )
 
-# Extract pieces and rename
-renamed_binlist <- sapply(bin_list, function(x) {
-  
+# function to rename bin list
+renamed_binlist = sapply(bin_list, function(x) {
   # Extract site, depth, and MAG number
-  parts <- sub(
-    "R([0-9]+)m([0-9]+)m\\.([0-9]+)",
-    "\\1_\\2_\\3",
-    x
-  )
-  
-  pieces <- strsplit(parts, "_")[[1]]
-  
-  site  <- site_map[pieces[1]]
-  depth <- pieces[2]
-  mag   <- pieces[3]
-  
+  name = sub("R([0-9]+)m([0-9]+)m\\.([0-9]+)","\\1_\\2_\\3", x)
+  pieces_of_name = strsplit(name, "_")[[1]]
+  site  = site_map[pieces_of_name[1]]
+  depth = pieces_of_name[2]
+  mag   = pieces_of_name[3]
   paste0(site, "_", depth, "m_MAG_", mag, ".fa")
 })
 
@@ -65,51 +57,33 @@ renamed_binlist
 ```
 
 ```{r make new directory using jaffe refined bins}
-# Directories
-source_dir <- "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/jaffe_refined_genomes"
-target_dir <- "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/06152026_refined_genomes"
+# dirs
+source_dir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/jaffe_refined_genomes"
+target_dir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/06152026_refined_genomes"
 
-if (!dir.exists(target_dir)) {
-  dir.create(target_dir, recursive = TRUE)
-}
+dir.create(target_dir)
 
-# Full paths
-source_files <- file.path(source_dir, renamed_binlist)
-target_files <- file.path(target_dir, renamed_binlist)
+# file paths
+source_files = file.path(source_dir, renamed_binlist)
+target_files = file.path(target_dir, renamed_binlist)
 
-# Check which files exist
+# check all MAgs exist
 missing_files <- renamed_binlist[!file.exists(source_files)]
 
 if (length(missing_files) > 0) {
-  warning(
-    paste(
-      "These files were not found:",
-      paste(missing_files, collapse = ", ")
-    )
-  )
-}
+  warning(paste("files missing:", paste(missing_files, collapse = ", ")))
+  }
 
-# Copy existing files
+# Copy files
 file.copy(
   from = source_files[file.exists(source_files)],
-  to = target_files[file.exists(source_files)],
-  overwrite = TRUE
+  to = target_files[file.exists(source_files)]
 )
-
-# Report result
-cat(
-  "Copied",
-  sum(file.exists(source_files)),
-  "of",
-  length(renamed_binlist),
-  "files into",
-  target_dir,
-  "\n"
-)
+#check dir and file size that it worked
 ```
 
 ```{r redefine genome directories & save binlist}
-genomedir <- "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/refined_analysis/06152026_refined_genomes/"
+genomedir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/refined_analysis/06152026_refined_genomes/"
 renamed_binlist = list.files(genomedir)
 #writeLines(renamed_binlist, paste0(rootdir, "/refined_binlist.txt"))
 renamed_binlist = as.character(readLines(paste0(rootdir, "/refined_binlist.txt")))
@@ -206,10 +180,10 @@ for(i in renamed_binlist) {
   for (x in KOs) {
     threshold = with(KO_thresholds, new[KO == x])
     assign(paste("bitscore_", x, sep = ""), threshold)
-    pass <- auto_kegg[which(auto_kegg$KO == x & auto_kegg$score >= threshold), ]
+    pass = auto_kegg[which(auto_kegg$KO == x & auto_kegg$score >= threshold), ]
     assign(paste("bitscore_pass_", x, sep = ""), pass)
   }
-  auto_filtered <- rbind(bitscore_pass_K00194, bitscore_pass_K00197, bitscore_pass_K00198, bitscore_pass_K00855, bitscore_pass_K01601, bitscore_pass_K01602, bitscore_pass_K08691, bitscore_pass_K09709, bitscore_pass_K14466, bitscore_pass_K14467, bitscore_pass_K14468, bitscore_pass_K14469, bitscore_pass_K14470, bitscore_pass_K15016, bitscore_pass_K15017, bitscore_pass_K15023, bitscore_pass_K15039, bitscore_pass_K15052, bitscore_pass_K15230, bitscore_pass_K15231, bitscore_pass_K15232, bitscore_pass_K15233, bitscore_pass_K15234, bitscore_pass_K18861, bitscore_pass_K14138)
+  auto_filtered = rbind(bitscore_pass_K00194, bitscore_pass_K00197, bitscore_pass_K00198, bitscore_pass_K00855, bitscore_pass_K01601, bitscore_pass_K01602, bitscore_pass_K08691, bitscore_pass_K09709, bitscore_pass_K14466, bitscore_pass_K14467, bitscore_pass_K14468, bitscore_pass_K14469, bitscore_pass_K14470, bitscore_pass_K15016, bitscore_pass_K15017, bitscore_pass_K15023, bitscore_pass_K15039, bitscore_pass_K15052, bitscore_pass_K15230, bitscore_pass_K15231, bitscore_pass_K15232, bitscore_pass_K15233, bitscore_pass_K15234, bitscore_pass_K18861, bitscore_pass_K14138)
   auto_filtered  = auto_filtered  %>%
     mutate(pathway = case_when(
       endsWith(KO, "00855") ~ "CBB",
@@ -238,7 +212,7 @@ for(i in renamed_binlist) {
       endsWith(KO, "18861") ~ "3HP/4HB or DC/4HB",
       endsWith(KO, "14467") ~ "DC/4HB"
   ))
-  duprows <- rownames(kegg_besthit) %in% rownames(auto_filtered)
+  duprows = rownames(kegg_besthit) %in% rownames(auto_filtered)
   processed = rbind(auto_filtered, kegg_besthit[!duprows,])
   write.csv(processed, paste(rootdir, "refined_analysis/refined_kofamscan/csv_processed/", i, "_processed.csv", sep = ""))
 }
@@ -287,21 +261,13 @@ filenames = list.files(path = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_ba
 setwd("/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/refined_analysis/refined_kofamscan/csv_processed/")
 
 for (f in filenames) {
-
-  sample_name <- sub("_processed\\.csv$", "", basename(f))
-
-  genome <- read_csv(f, col_names = TRUE, show_col_types = FALSE) %>%
+  sample_name = sub("_processed\\.csv$", "", basename(f))
+  genome = read_csv(f, col_names = TRUE, show_col_types = FALSE) %>%
     select(KO) %>%
     distinct(KO) %>%
-    transmute(
-      gene_id = KO,
-      present = 1
-    )
-
-  names(genome)[names(genome) == "present"] <- sample_name
-
-  genome <- left_join(DRAM_KOs, genome, by = "gene_id")
-
+    transmute(gene_id = KO, present = 1)
+  names(genome)[names(genome) == "present"] = sample_name
+  genome = left_join(DRAM_KOs, genome, by = "gene_id")
   assign(
     paste0("genome_", sample_name),
     genome
@@ -314,14 +280,14 @@ merge each genomes df's together into one giant matrix of gene presence/absence 
 #get all data frames in list
 df_list = mget(ls(pattern = "genome_O"))
 #clean up the names so its just the bin ID
-names(df_list) <- sub("\\_processed.csv$", "", names(df_list))
+names(df_list) = sub("\\_processed.csv$", "", names(df_list))
 #merge all the dataframes together
 a = do.call("cbind", df_list)
 
 #clean up df by renaming some files and dropping duplicate columns
 a = a %>%
     dplyr::rename("KO" = "genome_OC2_150m_MAG_100.fa.gene_id")
-ab <- a %>% select(-contains(".gene_id"))
+ab = a %>% select(-contains(".gene_id"))
 
 #reorder the KO columns so theyre in the same order for when you do cbind since that doesnt look for matches. had to do it this way since merge wasnt working (gave too many rows)
 DRAM_pathways = DRAM_pathways[order(DRAM_pathways$gene_id,decreasing=TRUE),]
@@ -329,8 +295,8 @@ ab = ab[order(ab$KO,decreasing=TRUE),]
 ab = cbind(ab, DRAM_pathways)
 
 #dropping duplicate rows, renaming column headers, and replacing NAs with zeros
-ab <- ab %>% select(-contains("gene_id"))
-ab[is.na(ab)] <- 0
+ab = ab %>% select(-contains("gene_id"))
+ab[is.na(ab)] = 0
 colnames(ab) = gsub("[.]R\\d+m\\d+m*[.]\\d+", "", colnames(ab))
 
 colnames(ab)
@@ -392,7 +358,7 @@ colnames(remove)
 
 ```{r}
 #Add the target 'present' value to the remove dataframe
-remove_mod <- remove %>% 
+remove_mod = remove %>% 
   mutate(present = 0)
 
 auto_MAGs_edited <- auto_MAGs_distinct %>%
@@ -422,15 +388,15 @@ Table S6: genome, taxonomy, size, GC, carbon fixation pathway present, completen
 tableS6 = auto_MAGs_edited
 tableS6 = filter(tableS6, tableS6$present == 1)
 
-CBB <- c("K01602", "K00855", "K01601")
-HP <- c("K14468", "K15052", "K08691", "K14469", "K14470", "K14449", "K09709")
+CBB = c("K01602", "K00855", "K01601")
+HP = c("K14468", "K15052", "K08691", "K14469", "K14470", "K14449", "K09709")
 rTCA = c("K15230", "K15231", "K15232", "K15233", "K15234")
 WL = c("K00198", "K14138", "K00197", "K00194", "K15023")
 HP_HB = c("K15039", "K14466")
 HP_DC_HB = c("K15017", "K15016", "K18861", "K14467")
 
 tableS6$pathway = "X"
-tableS6 <- tableS6 %>%
+tableS6 = tableS6 %>%
   group_by(genome) %>%
   mutate(pathway = case_when(
     any(KO %in% CBB) & any(KO %in% HP) ~ "3HP bicycle, CBB",
@@ -454,7 +420,7 @@ tableS6 = subset(tableS6,!is.na(pathway))
 tableS6 = distinct(tableS6, genome, .keep_all = TRUE)
 
 #modify pathway based on taxonomy
-tableS6 <- tableS6 %>%
+tableS6 = tableS6 %>%
   mutate(
     pathway = case_when(
       grepl("halobacteriota", phylum, ignore.case = TRUE) & pathway == "3HP/4HB or DC/4HB" ~ "DC/4HB",
@@ -463,7 +429,7 @@ tableS6 <- tableS6 %>%
     )
   )
 
-tableS6 <- tableS6 %>%
+tableS6 = tableS6 %>%
   separate(
     col = genome,         
     into = c("site_generated", "depth_generated"),
@@ -481,7 +447,7 @@ nestor_genomes = prev_reported$genome_name[prev_reported$reported_in == "Arandia
 jaffe_genomes = prev_reported$genome_name[prev_reported$reported_in == "Jaffe et al. 2025"]
 
 # Add the previously_reported column
-tableS6 <- tableS6 %>%
+tableS6 = tableS6 %>%
   mutate(previously_reported = case_when(
     genome %in% jaffe_genomes  ~ "Jaffe et al., 2025",
     genome %in% nestor_genomes ~ "Arandia-Gorostidi et al. 2024", 
@@ -548,10 +514,10 @@ out_dir = paste0(rootdir, "/coverM_genome_set")
 ```
 
 ```{r rename unrefined genomes to match naming scheme}
-genome_dir <- "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/dereplicated_genomes"
+genome_dir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/dereplicated_genomes"
 
 # Site conversion map
-site_map <- c(
+site_map = c(
   "500"  = "OC2",
   "3000" = "OC3",
   "3500" = "OC4",
@@ -560,35 +526,27 @@ site_map <- c(
 )
 
 # Get fasta files
-files <- list.files(
+files = list.files(
   genome_dir,
   pattern = "\\.fa$",
   full.names = TRUE
 )
 
 # Convert names
-new_names <- sapply(basename(files), function(x) {
+new_names = sapply(basename(files), function(x) {
   
   # remove .fa
-  base <- sub("\\.fa$", "", x)
-  
-  parts <- sub(
-    "[AR]([0-9]+)m([0-9]+)m\\.([0-9]+)",
-    "\\1_\\2_\\3",
-    base
-  )
-  
-  pieces <- strsplit(parts, "_")[[1]]
-  
-  site  <- site_map[pieces[1]]
-  depth <- pieces[2]
-  mag   <- pieces[3]
-  
+  names = sub("\\.fa$", "", x)
+  name = sub("[AR]([0-9]+)m([0-9]+)m\\.([0-9]+)","\\1_\\2_\\3",name)
+  pieces_of_name = strsplit(name, "_")[[1]]
+  site  = site_map[pieces_of_name[1]]
+  depth = pieces_of_name[2]
+  mag   = pieces_of_name[3]
   paste0(site, "_", depth, "m_MAG_", mag, ".fa")
 })
 
-# Preview changes
-rename_table <- data.frame(
+#preview 
+rename_table = data.frame(
   old = basename(files),
   new = new_names
 )
@@ -605,55 +563,43 @@ file.rename(
 ```{r create new coverM directory that is drep set + refined genomes}
 dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
 
-orig_files <- list.files(orig_dir, pattern = "\\.fa$", full.names = TRUE)
-refined_files <- list.files(refined_dir, pattern = "\\.fa$", full.names = TRUE)
+orig_files = list.files(orig_dir, pattern = "\\.fa$", full.names = TRUE)
+refined_files = list.files(refined_dir, pattern = "\\.fa$", full.names = TRUE)
 
-# generate a match key
-get_key <- function(x) {
-  x <- basename(x)
-  x <- sub("^[AR]", "", x)
-  x <- sub("_contigs", "", x)
-  x <- sub("\\.fa$", "", x)
+# generate a match map
+get_key = function(x) {
+  x = basename(x)
+  x = sub("^[AR]", "", x)
+  x = sub("_contigs", "", x)
+  x = sub("\\.fa$", "", x)
   return(x)
 }
 
 #  lookup table for refined files
-refined_keys <- get_key(refined_files)
-refined_lookup <- setNames(refined_files, refined_keys)
+refined_keys = get_key(refined_files)
+refined_lookup = setNames(refined_files, refined_keys)
 
+#copy the files into a new dir
 for (f in orig_files) {
-
-  key <- get_key(f)
-
+  key = get_key(f)
   if (key %in% names(refined_lookup)) {
-
-    refined_file <- refined_lookup[[key]]
-    out_name <- sub("_contigs", "", basename(refined_file))
-
+    refined_file = refined_lookup[[key]]
+    out_name = sub("_contigs", "", basename(refined_file))
     file.copy(
       refined_file,
       file.path(out_dir, out_name),
-      overwrite = TRUE
-    )
-
+      overwrite = TRUE)
   } else {
-
-    file.copy(
-      f,
-      file.path(out_dir, basename(f)),
-      overwrite = TRUE
-    )
-
+    file.copy(f,file.path(out_dir, basename(f)),overwrite = TRUE)
   }
 }
 
 # summary
-n_replaced <- sum(get_key(orig_files) %in% names(refined_lookup))
+n_replaced = sum(get_key(orig_files) %in% names(refined_lookup))
 
-cat("Original files:", length(orig_files), "\n")
-cat("Refined files:", length(refined_files), "\n")
-cat("Files replaced by refined versions:", n_replaced, "\n")
-cat("Files in output directory:", length(list.files(out_dir)), "\n")
+length(orig_files)
+length(refined_files)
+length(list.files(out_dir))
 ```
 
 ```{r define sample list for trimmed reads}
@@ -683,7 +629,7 @@ for(i in sample_list) {
 
 df_list = mget(ls(pattern = "coverM_"))
 coverM = rbindlist(df_list, use.names = TRUE)
-coverM <- coverM %>%
+coverM = coverM %>%
   separate(Sample, into = c("site", "depth"), sep = "m")
 
 site_map <- c(
@@ -694,7 +640,7 @@ site_map <- c(
   "4500" = "OC6"
 )
 
-coverM <- coverM %>%
+coverM = coverM %>%
   mutate(site = recode(site, !!!site_map))
 
 write_csv(coverM, paste(rootdir, "refined_analysis/merged_coverM/refined_coverM_all_06152026.csv", sep = ""))
