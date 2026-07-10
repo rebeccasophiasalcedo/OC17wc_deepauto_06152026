@@ -117,10 +117,10 @@ df = completeness_df %>% count(completeness_df$label)
 df$relative = df$n/max(df$n)
 df = df %>% mutate(relative = ifelse(relative <= "0.15", "0.15", relative))
 
-completeness_df <- completeness_df %>%
+completeness_df = completeness_df %>%
   arrange(label, genome, desc(Completeness))
 
-completeness_df$label <- factor(completeness_df$label, levels = unique(completeness_df$label))
+completeness_df$label = factor(completeness_df$label, levels = unique(completeness_df$label))
 
 completeness_plot = ggplot(completeness_df, aes(x = Completeness, y = genome)) +
   geom_bar(stat = "identity", position = "identity", fill = "gray85") +
@@ -165,9 +165,9 @@ sample_cov = coverm_QC %>%
   summarise(Mean = sum(Mean))
 
 coverm_QC = left_join(coverm_QC, sample_cov, "Sample")
-coverm_QC <- coverm_QC %>% 
+coverm_QC = coverm_QC %>% 
        rename("sample_cov" = "Mean.y")
-coverm_QC <- coverm_QC %>% 
+coverm_QC = coverm_QC %>% 
        rename("genome_cov" = "Mean.x")
 coverm_QC$relative = coverm_QC$genome_cov/coverm_QC$sample_cov
 
@@ -175,13 +175,13 @@ coverm_small = select(coverm_QC, c(Sample, genome, relative))
 
 auto_genomes = as.list(completeness_df$genome)
 
-auto_coverm <- coverm_small[coverm_small$genome %in% auto_genomes, ]
+auto_coverm = coverm_small[coverm_small$genome %in% auto_genomes, ]
 
 auto_coverm$relative = auto_coverm$relative*100
 
 auto_coverm = merge(auto_coverm, completeness_df, by = "genome")
  
-auto_coverm <- auto_coverm %>%
+auto_coverm = auto_coverm %>%
   arrange(label, desc(Completeness))
 
 abundance_plot = ggplot(auto_coverm, aes(y = genome, x = relative)) +
@@ -250,17 +250,17 @@ ggsave(paste(rootdir, "refined_analysis/refined_figures/06152026/refined_figure4
 ```{r}
 colnames(auto_MAGs_simple)
 
-# X: Genomes with ANY Sulfur gene
-sulfur_genomes <- auto_MAGs_simple %>%
+# Genomes with ANY Sulfur gene
+sulfur_genomes = auto_MAGs_simple %>%
   filter(header == "Sulfur", present == 1) %>%
   select(genome) %>%
   distinct()
 
-X <- nrow(sulfur_genomes)
+nrow(sulfur_genomes)
 #114 genomes
 
-# Genomes with Sulfur gene K00958 (sat)
-k00958_genomes <- auto_MAGs_simple %>%
+# Genomes with K00958 (sat)
+k00958_genomes = auto_MAGs_simple %>%
   filter(header == "Sulfur",
          KO == "K00958",
          present == 1) %>%
@@ -268,8 +268,8 @@ k00958_genomes <- auto_MAGs_simple %>%
   distinct()
 #44 genomes
 
-# Genomes with Sulfur gene K00394 (apr)
-k00394_genomes <- auto_MAGs_simple %>%
+# Genomes with K00394 (apr)
+k00394_genomes = auto_MAGs_simple %>%
   filter(header == "Sulfur",
          KO == "K00394",
          present == 1) %>%
@@ -277,8 +277,8 @@ k00394_genomes <- auto_MAGs_simple %>%
   distinct()
 #23 genomes
 
-# Get the unique genomes that have "K00958" but not "K00394" (only sat, not apr)
-nonsulfite_genomes <- setdiff(k00958_genomes$genome, k00394_genomes$genome)
+# unique genomes that have "K00958" but not "K00394" (only sat, not apr)
+nonsulfite_genomes = setdiff(k00958_genomes$genome, k00394_genomes$genome)
 #26 genomes
 
 #114-26 = 88 genomes capable of any type of sulfur oxidation, including sulfite
@@ -291,27 +291,27 @@ both_sulfur_genomes <- intersect(
 #18 genomes capable of sulfite oxidation
 
 #genomes with marker genes for sulfur oxidation, excluding those who only encode sat (but includes all other sulfur genes such as dsrAB and sox)
-complete_sulfur_genomes <- setdiff(
+complete_sulfur_genomes = setdiff(
   sulfur_genomes$genome,
   nonsulfite_genomes
 )
 #88 genomes
 
-# Y: Genomes with ONLY one sulfite oxidation gene (partial pathway)
-only_one_sulfur_genomes <- setdiff(
+# Genomes with apr or sat but not both
+only_one_sulfur_genomes = setdiff(
   union(k00958_genomes$genome, k00394_genomes$genome),
   both_sulfur_genomes
 )
 #33 genomes who only have one gene for sulfite oxidation (either apr or sat)
 
 # Genomes with A_3HP bi-cycle
-A3HP_genomes <- auto_MAGs_simple %>%
+A3HP_genomes = auto_MAGs_simple %>%
   filter(header == "A_3HP bi-cycle", present == 1) %>%
   select(genome) %>%
   distinct()
 #109 genomes
 
-# Final: Genomes with complete Sulfur pathway AND A_3HP bi-cycle
+# Genomes with a Sulfur pathway (not just sat) AND A_3HP bi-cycle
 A3HP_and_complete_sulfur_genomes <- intersect(
   complete_sulfur_genomes,
   A3HP_genomes$genome
