@@ -33,7 +33,7 @@ rootdir = "/scratch/users/rsalcedo/OC17wc_deepauto/genome_based/"
 ```{r define color palettes}
 c38 = c("#808080", "#d3d3d3", "#556b2f", "#a0522d", "#228b22", "#191970", "#8b0000", "#808000", "#008080", "#4682b4", "#9acd32", "#00008b", "#daa520", "#8fbc8f", "#8b008b", "#b03060", "#d2b48c", "#ff0000", "#00ced1", "#ff8c00", "#ffb6c1", "#0000cd", "#7fff00", "#9400d3", "#00ff7f", "#9370db", "#ff6347", "#ff00ff", "#1e90ff", "#f0e68c", "#dda0dd", "#90ee90", "#ff1493", "#ffa07a", "#ee82ee", "#87cefa", "#7fffd4", "#ffff00")
 
-c26 <- c(
+c26 = c(
   "dodgerblue2", "#E31A1C", "green4", "#6A3D9A", "#FF7F00", "black", "gold1", "skyblue2", "#FB9A99", "palegreen2","#CAB2D6", "#FDBF6F", "gray70", "khaki2", "maroon", "orchid1", "deeppink1", "blue1", "steelblue4", "darkturquoise", "green1", "yellow4", "yellow3", "darkorange4", "brown", "#808080"
 )
 ```
@@ -55,9 +55,9 @@ sample_cov = coverm_QC %>%
   summarise(Mean = sum(Mean))
 
 coverm_QC = left_join(coverm_QC, sample_cov, "Sample")
-coverm_QC <- coverm_QC %>% 
+coverm_QC = coverm_QC %>% 
   rename_with(~ "sample_cov", starts_with("Mean.y"))
-coverm_QC <- coverm_QC %>% 
+coverm_QC = coverm_QC %>% 
   rename_with(~ "genome_cov", starts_with("Mean.x"))
 coverm_QC$relative = coverm_QC$genome_cov/coverm_QC$sample_cov
 
@@ -97,13 +97,11 @@ outdir = file.path(rootdir, "refined_analysis/refined_figures/06152026/figureS3/
 
 for (ph in phyla_list) {
  phyla_df = genome_coverage %>% filter(phylum2 == ph)
-
   phyla_df = phyla_df %>%
     mutate(
       taxon_source = if_else(is.na(family) | family == "", "order", "family"),
       family2 = if_else(is.na(family) | family == "", order, family)
     )
-
    phyla_df_aggregate = phyla_df %>%
     group_by(Sample, family = family2, taxon_source) %>%
     summarise(relative_pct = sum(relative), .groups = "drop") %>%
@@ -117,57 +115,41 @@ for (ph in phyla_list) {
     )
    
    phyla_df_aggregate <- phyla_df_aggregate %>%
-  separate(
-    col = Sample,         
-    into = c("site", "depth"), 
-    sep = "_", 
-    remove = FALSE 
-  )
+      separate(
+        col = Sample,         
+        into = c("site", "depth"), 
+        sep = "_", 
+        remove = FALSE 
+      )
 
   phyla_df_aggregate = phyla_df_aggregate %>%
-    mutate(
-      taxon_label = factor(
-        taxon_label,
-        levels = rev(sort(unique(taxon_label)))
-      )
-    )
+    mutate(taxon_label = factor(taxon_label, levels = rev(sort(unique(taxon_label)))))
 
  xmax = max(phyla_df_aggregate$relative_pct, na.rm = TRUE)
 
-p = ggplot(phyla_df_aggregate,
-           aes(fill = taxon_label, color = taxon_label,
-               y = relative_pct, x = depth)) +
+p = ggplot(phyla_df_aggregate, aes(fill = taxon_label, color = taxon_label, y = relative_pct, x = depth)) +
   geom_bar(stat = "identity") +
   facet_grid(~factor(site, levels = c("OC6", "OC5", "OC4", "OC3", "OC2"))) +
   coord_flip() +
   ylab(paste("Relative Autotrophic MAG abundance -", ph)) +
   xlab("Depth") +
   theme_few() +
-  theme(
-    legend.position = "bottom",
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  ) +
+  theme(legend.position = "bottom", axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_fill_manual(values = c26) +
   scale_color_manual(values = c26) +
   scale_x_discrete(limits = c("4000","3000","2000","1000","500","150","50")) +
   scale_y_continuous(limits = c(0, xmax)) +
-  guides(
-    fill = guide_legend(reverse = TRUE),
+  guides(fill = guide_legend(reverse = TRUE),
     color = guide_legend(reverse = TRUE)
   )
 
-  outfile = file.path(
-    outdir,
-    paste0("refined_figure2B_", tolower(ph), ".pdf")
-  )
-
+  outfile = file.path(outdir, paste0("refined_figure2B_", tolower(ph), ".pdf"))
   ggsave(outfile, plot = p, width = 11, height = 8, units = "in", dpi = 72)
   saveRDS(p, file = file.path(outdir, paste0("plot_", tolower(ph), ".rds")))
 }
-
 ```
 
-#6152026
+save all plots to a 3 page file using the saved .rds files
 ```{r}
 combine_plots_to_pdf = function(outdir,
                                 plots_per_page = 6,
@@ -175,31 +157,28 @@ combine_plots_to_pdf = function(outdir,
                                 ncol = 2,
                                 nrow = 3) {
   
-  # 1. Load files
+  # get files
   rds_files = list.files(outdir, pattern = "^plot_.*\\.rds$", full.names = TRUE)
   if (length(rds_files) == 0) stop("No plot_*.rds files found in: ", outdir)
-  
   rds_files = sort(rds_files)
   plot_list = lapply(rds_files, readRDS)
   
-  # 2. Pre-tag all plots continuously using uppercase letters
+  # tag all plots to ensure continuous labels
   for (i in seq_along(plot_list)) {
     plot_list[[i]] = plot_list[[i]] + ggtitle(LETTERS[i]) + 
       theme(plot.title = element_text(face = "bold")) 
   }
   
-  # 3. Split into pages
+  # make page split
   groups = split(plot_list, ceiling(seq_along(plot_list) / plots_per_page))
-  
   pdf_path = file.path(outdir, outfile)
   pdf(pdf_path, width = 16, height = 18)
   
-  # 4. Wrap and print each page (without using plot_annotation tag_levels)
+  # make pages and print
   for (grp in groups) {
-    layout <- wrap_plots(grp, ncol = ncol, nrow = nrow)
+    layout = wrap_plots(grp, ncol = ncol, nrow = nrow)
     print(layout)
   }
-
   dev.off()
 }
 ```
