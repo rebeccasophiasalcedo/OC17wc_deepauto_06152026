@@ -124,8 +124,8 @@ merged_relative_noeuks = merged_relative %>% filter(reconciled_taxonomy != "Euka
 ```
 
 ```{r}
-
-result <- merged_relative %>%
+#NOB
+result = merged_relative %>%
   filter(reconciled_taxonomy %in% c("Nitrospirota", "Nitrospinota")) %>%
   group_by(sample) %>%
   summarize(
@@ -133,10 +133,9 @@ result <- merged_relative %>%
     total_scaffolds = n()
   )
 
-# Print the result
 print(result)
-
-result <- merged_relative %>%
+#AOA
+result = merged_relative %>%
   filter(reconciled_taxonomy %in% c("Nitrososphaerota")) %>%
   group_by(sample) %>%
   summarize(
@@ -144,16 +143,15 @@ result <- merged_relative %>%
     total_scaffolds = n()
   )
 
-# Print the result
 print(result)
 
 
 ```
 
 ```{r}
-palette <- stepped(n=24)
+palette = stepped(n=24)
 
-palette <- c(
+palette = c(
   "steelblue4", 
   "green4",
   "#6A3D9A", 
